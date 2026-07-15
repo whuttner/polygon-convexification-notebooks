@@ -1,0 +1,3793 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Wolfram 14.3' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       154,          7]
+NotebookDataLength[    166484,       3785]
+NotebookOptionsPosition[    154273,       3573]
+NotebookOutlinePosition[    154718,       3591]
+CellTagsIndexPosition[    154675,       3588]
+WindowTitle->PairAlignedDynamics
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell["PairAlignedDynamics", "Title",ExpressionUUID->"efc2423e-10e2-4664-9b72-0c09507451dd"],
+
+Cell["\<\
+First-harmonic rescaled dynamics and canonical pair-plane alignment\
+\>", "Subtitle",ExpressionUUID->"c88c655d-c15e-45bc-9d82-2c6034d3bcd4"],
+
+Cell[CellGroupData[{
+
+Cell["Purpose", "Section",ExpressionUUID->"2ef56875-1222-47d6-b814-72c9f851a2e2"],
+
+Cell[TextData[{
+ "This notebook supports Chapter 3. It constructs the pair-aligned rescaled \
+operator ",
+ Cell[BoxData[
+  SubscriptBox["R", "\[Alpha]"]], "InlineFormula",ExpressionUUID->
+  "64cf913d-4f8c-4315-83fe-bb6892b94aec"],
+ ", verifies the canonical alignment of a nondegenerate first harmonic, \
+checks that the first-harmonic component is fixed, and illustrates \
+exponential convergence of the complementary modes."
+}], "Text",ExpressionUUID->"8e224c60-b1f5-4238-a3fa-69166ec1f798"],
+
+Cell["\<\
+All executable cells are ordinary Wolfram Language Input cells. Typeset box \
+expressions appear only in explanatory cells.\
+\>", "Text",ExpressionUUID->"bed3ce6f-6ee2-41f3-a6a3-36ebd7afee4f"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["1. Fourier and averaging definitions", "Section",ExpressionUUID->"9d0ed6d4-d942-473b-a09c-21116b9255d4"],
+
+Cell["\<\
+ClearAll[\"Global`*\"];
+
+omega[n_Integer?Positive] := Exp[2 Pi I/n];
+
+fourierVector[n_Integer?Positive, k_Integer] :=
+  Table[omega[n]^(j k), {j, 0, n - 1}]/Sqrt[n];
+
+fourierMatrix[n_Integer?Positive] :=
+  Transpose@Table[fourierVector[n, k], {k, 0, n - 1}];
+
+fourierCoefficients[p_List] := Module[{F},
+  F = fourierMatrix[Length[p]];
+  ConjugateTranspose[F] . N[p]
+];
+
+fourierSynthesis[c_List] :=
+  fourierMatrix[Length[c]] . c;
+
+centerPolygon[p_List] :=
+  N[p] - Mean[N[p]];
+
+applyA[p_List, alpha_?NumericQ] :=
+  (1 - alpha) N[p] + alpha RotateLeft[N[p]];
+
+lambda[n_Integer?Positive, k_Integer, alpha_?NumericQ] :=
+  (1 - alpha) + alpha Exp[2 Pi I k/n];
+
+mu[n_Integer?Positive, k_Integer, alpha_?NumericQ] :=
+  Abs[lambda[n, k, alpha]];\
+\>", "Input",
+ CellLabel->
+  "In[2489]:=",ExpressionUUID->"b31f5bd9-d366-4c47-889a-36c691be2324"],
+
+Cell["The averaging operator satisfies", "Text",ExpressionUUID->"d17b7c2f-3a87-49c7-ba4f-a036c5e19b95"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{
+   SubscriptBox["A", "\[Alpha]"], 
+   SubscriptBox[
+    OverscriptBox["\[CurlyPhi]", "\[RightVector]"], "k"], "=", 
+   SubscriptBox["\[Lambda]", "k"], 
+   SubscriptBox[
+    OverscriptBox["\[CurlyPhi]", "\[RightVector]"], "k"]}], 
+  TraditionalForm]], "DisplayFormula",ExpressionUUID->"5e3fbf36-c82c-4592-\
+be5a-0ad16923bba3"],
+
+Cell["\<\
+nExample = 12;
+alphaExample = 0.35;\
+\>", "Input",
+ CellLabel->
+  "In[2508]:=",ExpressionUUID->"25ce2dd4-d3df-4603-afd2-b454cd23db2f"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["2. First-harmonic decomposition", "Section",ExpressionUUID->"bfe7a6a5-cff0-4d2f-967f-b9edadb2ccae"],
+
+Cell["\<\
+pairPlaneCoefficients[p_List] := Module[{n, c, result},
+  n = Length[p];
+  c = fourierCoefficients[p];
+  result = ConstantArray[0, n];
+  result[[2]] = c[[2]];
+  result[[n]] = c[[n]];
+  result
+];
+
+pairPlaneProjection[p_List] :=
+  fourierSynthesis[pairPlaneCoefficients[p]];
+
+perpendicularProjection[p_List] :=
+  N[p] - pairPlaneProjection[p];
+
+firstHarmonicData[p_List] := Module[{n, c},
+  n = Length[p];
+  c = fourierCoefficients[p];
+  <|
+    \"c1\" -> c[[2]],
+    \"cNMinus1\" -> c[[n]]
+  |>
+];\
+\>", "Input",
+ CellLabel->
+  "In[2510]:=",ExpressionUUID->"999e2816-47d2-4f8f-ad9e-32b48aa76c9f"],
+
+Cell["\<\
+SeedRandom[3030];
+pExample = RandomReal[{-1, 1}, nExample] + I RandomReal[{-1, 1}, nExample];
+pExample = centerPolygon[pExample];
+pPair = pairPlaneProjection[pExample];
+pPerp = perpendicularProjection[pExample];
+decompositionError = Norm[N[pExample - pPair - pPerp]];
+decompositionQ = decompositionError < 10^-10;\
+\>", "Input",
+ CellLabel->
+  "In[2517]:=",ExpressionUUID->"a676ffb5-d4f7-476d-9823-116524223ca3"],
+
+Cell[CellGroupData[{
+
+Cell["decompositionError", "Input",
+ CellLabel->
+  "In[2524]:=",ExpressionUUID->"331362b9-02dc-4050-b1b3-c9cd6b746df9"],
+
+Cell[BoxData["1.6653345369377348`*^-16"], "Output",
+ CellChangeTimes->{3.992804383718685*^9},
+ CellLabel->
+  "Out[2524]=",ExpressionUUID->"3880809e-891b-485b-8c77-fc199eef59ba"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["decompositionQ", "Input",
+ CellLabel->
+  "In[2525]:=",ExpressionUUID->"3c0af7c8-5404-4954-8217-5cf1ede46714"],
+
+Cell[BoxData["True"], "Output",
+ CellChangeTimes->{3.9928043837303658`*^9},
+ CellLabel->
+  "Out[2525]=",ExpressionUUID->"f2eae2bb-00d2-44fb-9719-006e9164cec3"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["3. Alignment parameters", "Section",ExpressionUUID->"9c3e4302-917e-480f-8de1-ff954e21ed11"],
+
+Cell["For", "Text",ExpressionUUID->"b6f82eee-38df-4e87-a006-5ff4ec150a7b"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{
+   SubscriptBox["p", 
+    RowBox[{"\[PlusMinus]", "1"}]], "=", 
+   SubscriptBox["c", "1"], 
+   SubscriptBox["\[CurlyPhi]", "1"], "+", 
+   SubscriptBox["c", 
+    RowBox[{"n", "-", "1"}]], 
+   SubscriptBox["\[CurlyPhi]", 
+    RowBox[{"n", "-", "1"}]]}], TraditionalForm]], "DisplayFormula",Expression\
+UUID->"a8335f65-eee5-43a8-adc0-33cf685ca3c8"],
+
+Cell[TextData[{
+ "Chapter 3 defines the rotation parameter ",
+ Cell[BoxData[
+  RowBox[{"\[Xi]", "=", 
+   SuperscriptBox["e", 
+    RowBox[{"i", 
+     RowBox[{"(", 
+      RowBox[{
+       SubscriptBox["\[Theta]", "1"], "+", 
+       SubscriptBox["\[Theta]", 
+        RowBox[{"n", "-", "1"}]]}], ")"}], "/", "2"}]]}]], "InlineFormula",
+  ExpressionUUID->"96649bd1-7c31-4df0-a466-00971bc3ae97"],
+ " and the anisotropy parameter"
+}], "Text",ExpressionUUID->"63edf0b5-33ee-467b-ad49-586b7cf35edb"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{"r", "=", 
+   FractionBox[
+    RowBox[{
+     RowBox[{"|", 
+      SubscriptBox["c", "1"], "|"}], "+", 
+     RowBox[{"|", 
+      SubscriptBox["c", 
+       RowBox[{"n", "-", "1"}]], "|"}]}], 
+    RowBox[{
+     RowBox[{"|", 
+      SubscriptBox["c", "1"], "|"}], "-", 
+     RowBox[{"|", 
+      SubscriptBox["c", 
+       RowBox[{"n", "-", "1"}]], "|"}]}]]}], 
+  TraditionalForm]], "DisplayFormula",ExpressionUUID->"421722bf-b1a2-4fcc-\
+81b1-5f8cf66e921b"],
+
+Cell["\<\
+alignmentParameters[p_List] := Module[
+  {data, c1, cN, theta1, thetaN, denominator},
+  data = firstHarmonicData[p];
+  c1 = data[\"c1\"];
+  cN = data[\"cNMinus1\"];
+  denominator = Abs[c1] - Abs[cN];
+  If[Abs[N[denominator]] < 10^-12,
+    Return[Missing[\"DegenerateFirstHarmonic\"]]
+  ];
+  theta1 = Arg[c1];
+  thetaN = Arg[cN];
+  <|
+    \"Xi\" -> Exp[I (theta1 + thetaN)/2],
+    \"R\" -> (Abs[c1] + Abs[cN])/denominator,
+    \"ThetaMinus\" -> (theta1 - thetaN)/2,
+    \"AlignedAmplitude\" -> (Abs[c1] + Abs[cN]) Exp[I (theta1 - thetaN)/2]
+  |>
+];\
+\>", "Input",
+ CellLabel->
+  "In[2526]:=",ExpressionUUID->"ecb19dd8-6b14-432d-bb93-a88259855f4f"],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+paramsExample = alignmentParameters[pExample];
+paramsExample\
+\>", "Input",
+ CellLabel->
+  "In[2527]:=",ExpressionUUID->"8aa776ca-8e34-4cc2-ae6c-7343fd68b34f"],
+
+Cell[BoxData[
+ RowBox[{"\[LeftAssociation]", 
+  RowBox[{
+   RowBox[{"\<\"Xi\"\>", "\[Rule]", 
+    RowBox[{"0.9796857577160295`", "\[VeryThinSpace]", "-", 
+     RowBox[{"0.20053881451821037`", " ", "\[ImaginaryI]"}]}]}], ",", 
+   RowBox[{"\<\"R\"\>", "\[Rule]", "5.458185683481367`"}], ",", 
+   RowBox[{"\<\"ThetaMinus\"\>", "\[Rule]", 
+    RowBox[{"-", "2.6668332257889737`"}]}], ",", 
+   RowBox[{"\<\"AlignedAmplitude\"\>", "\[Rule]", 
+    RowBox[{
+     RowBox[{"-", "0.684480561828709`"}], "-", 
+     RowBox[{"0.35180107328110666`", " ", "\[ImaginaryI]"}]}]}]}], 
+  "\[RightAssociation]"}]], "Output",
+ CellChangeTimes->{3.9928043837367992`*^9},
+ CellLabel->
+  "Out[2528]=",ExpressionUUID->"2c678438-cefd-47b1-8a08-59bd74f58121"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["4. Real-linear dilation", "Section",ExpressionUUID->"f737e653-559e-4068-b71b-9ecc4d1376b5"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{
+   SubscriptBox["D", "r"], 
+   RowBox[{"(", "z", ")"}], "=", 
+   FractionBox[
+    RowBox[{
+     RowBox[{"(", 
+      RowBox[{"1", "+", "r"}], ")"}], "z", "+", 
+     RowBox[{"(", 
+      RowBox[{"1", "-", "r"}], ")"}], 
+     OverscriptBox["z", "_"]}], "2"], "=", "u", "+", "i", "r", "v"}], 
+  TraditionalForm]], "DisplayFormula",ExpressionUUID->"75cd2a8b-3c0e-4ab6-\
+9388-0ce83deee327"],
+
+Cell["\<\
+dilationD[z_, r_?NumericQ] :=
+  ((1 + r) z + (1 - r) Conjugate[z])/2;
+
+inverseDilationD[z_, r_?NumericQ] :=
+  dilationD[z, 1/r];\
+\>", "Input",
+ CellLabel->
+  "In[2529]:=",ExpressionUUID->"bb0794e1-1249-432b-befb-444eae4d9379"],
+
+Cell["\<\
+zTest = 0.7 - 1.2 I;
+rTest = 2.3;
+dilationInverseError = Abs[N[inverseDilationD[dilationD[zTest, rTest], rTest] \
+- zTest]];
+dilationInverseQ = dilationInverseError < 10^-10;\
+\>", "Input",
+ CellLabel->
+  "In[2532]:=",ExpressionUUID->"fab3017d-db62-4f35-b5c5-e804cc03c46b"],
+
+Cell[CellGroupData[{
+
+Cell["dilationInverseError", "Input",
+ CellLabel->
+  "In[2536]:=",ExpressionUUID->"ae98e151-d3a9-4a2b-aca5-ca83c435a3f6"],
+
+Cell[BoxData["2.220446049250313`*^-16"], "Output",
+ CellChangeTimes->{3.992804383752651*^9},
+ CellLabel->
+  "Out[2536]=",ExpressionUUID->"266b4cdb-7e90-4d0d-8a45-ca6207ab9573"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["dilationInverseQ", "Input",
+ CellLabel->
+  "In[2537]:=",ExpressionUUID->"7f4abab3-bb80-4423-92ba-9454abbd7ee2"],
+
+Cell[BoxData["True"], "Output",
+ CellChangeTimes->{3.992804383757861*^9},
+ CellLabel->
+  "Out[2537]=",ExpressionUUID->"1c3e61f7-05c6-4d47-a8d0-68d31d0d57d7"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["5. The normalizing maps H and H inverse", "Section",ExpressionUUID->"32332d0e-f074-428b-a7b1-93a81c80d617"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{"H", "=", 
+   SubscriptBox["D", "r"], "\[SmallCircle]", 
+   OverscriptBox["\[Xi]", "_"], ",", "\[ThickSpace]", 
+   SuperscriptBox["H", 
+    RowBox[{"-", "1"}]], "=", "\[Xi]", "\[SmallCircle]", 
+   SubscriptBox["D", 
+    RowBox[{"1", "/", "r"}]]}], TraditionalForm]], "DisplayFormula",Expression\
+UUID->"34b2c211-0bfc-46cb-a99f-d328638f212f"],
+
+Cell["\<\
+applyH[p_List, params_Association] := Module[{xi, r},
+  xi = params[\"Xi\"];
+  r = params[\"R\"];
+  dilationD[Conjugate[xi] N[p], r]
+];
+
+applyHInverse[p_List, params_Association] := Module[{xi, r},
+  xi = params[\"Xi\"];
+  r = params[\"R\"];
+  xi inverseDilationD[N[p], r]
+];\
+\>", "Input",
+ CellLabel->
+  "In[2538]:=",ExpressionUUID->"52524132-0ca8-463e-b5be-ac965d303f8c"],
+
+Cell["\<\
+hInverseError = Norm[N[applyHInverse[applyH[pExample, paramsExample], \
+paramsExample] - pExample]];
+hInverseQ = hInverseError < 10^-10;\
+\>", "Input",
+ CellLabel->
+  "In[2541]:=",ExpressionUUID->"4f2efded-cf53-463a-af03-8b2d0c955c22"],
+
+Cell[CellGroupData[{
+
+Cell["hInverseError", "Input",
+ CellLabel->
+  "In[2543]:=",ExpressionUUID->"9950c72a-55bf-4d9c-a1dd-8874d62a6a53"],
+
+Cell[BoxData["9.61506381442413`*^-16"], "Output",
+ CellChangeTimes->{3.992804383769711*^9},
+ CellLabel->
+  "Out[2543]=",ExpressionUUID->"3e89af71-e732-401f-8260-455ed9b83ba1"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["hInverseQ", "Input",
+ CellLabel->
+  "In[2544]:=",ExpressionUUID->"76ca962c-871c-4f57-ba0b-36b8a14ecc6d"],
+
+Cell[BoxData["True"], "Output",
+ CellChangeTimes->{3.9928043837754393`*^9},
+ CellLabel->
+  "Out[2544]=",ExpressionUUID->"968fff6a-1a7d-43b8-9ab3-1ca4ef27c961"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["6. Alignment of the first harmonic", "Section",ExpressionUUID->"927a5c47-0902-4b61-b872-d53d9b60753e"],
+
+Cell["The alignment lemma states", "Text",ExpressionUUID->"4f99bfd1-bacf-4b2b-ac4d-0de707657cc3"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{"H", 
+   SubscriptBox["p", 
+    RowBox[{"\[PlusMinus]", "1"}]], "=", 
+   SuperscriptBox["a", "\[Prime]"], 
+   SubscriptBox["\[CurlyPhi]", "1"]}], TraditionalForm]], "DisplayFormula",Exp\
+ressionUUID->"0a122701-742c-4135-8f65-0da6524f33a6"],
+
+Cell["\<\
+alignedPair = applyH[pPair, paramsExample];
+alignedPairCoefficients = fourierCoefficients[alignedPair];
+alignedTarget = paramsExample[\"AlignedAmplitude\"] fourierVector[nExample, 1];
+alignmentError = Norm[N[alignedPair - alignedTarget]];
+alignmentQ = alignmentError < 10^-10;\
+\>", "Input",
+ CellLabel->
+  "In[2545]:=",ExpressionUUID->"a79dbc7b-0a78-40ab-a64d-637304471902"],
+
+Cell[CellGroupData[{
+
+Cell["alignedPairCoefficients", "Input",
+ CellLabel->
+  "In[2550]:=",ExpressionUUID->"656a0c3d-3af1-4f7a-a041-df703e64eadc"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"-", "1.3877787807814457`*^-17"}], "-", 
+    RowBox[{"2.6454533008646308`*^-17", " ", "\[ImaginaryI]"}]}], ",", 
+   RowBox[{
+    RowBox[{"-", "0.6844805618287095`"}], "-", 
+    RowBox[{"0.35180107328110644`", " ", "\[ImaginaryI]"}]}], ",", 
+   RowBox[{"2.7755575615628914`*^-17", "+", 
+    RowBox[{"4.163336342344337`*^-17", " ", "\[ImaginaryI]"}]}], ",", 
+   RowBox[{
+    RowBox[{"-", "4.2934406030425976`*^-17"}], "+", 
+    RowBox[{"1.3877787807814457`*^-17", " ", "\[ImaginaryI]"}]}], ",", 
+   RowBox[{
+    RowBox[{"-", "3.469446951953614`*^-18"}], "+", 
+    RowBox[{"2.0816681711721685`*^-17", " ", "\[ImaginaryI]"}]}], ",", 
+   RowBox[{"1.3877787807814457`*^-17", "+", 
+    RowBox[{"6.938893903907228`*^-17", " ", "\[ImaginaryI]"}]}], ",", 
+   RowBox[{
+    RowBox[{"-", "2.7755575615628914`*^-17"}], "-", 
+    RowBox[{"4.2934406030425976`*^-17", " ", "\[ImaginaryI]"}]}], ",", 
+   RowBox[{"5.551115123125783`*^-17", "+", 
+    RowBox[{"3.8163916471489756`*^-17", " ", "\[ImaginaryI]"}]}], ",", 
+   RowBox[{"2.7755575615628914`*^-17", "+", 
+    RowBox[{"2.0816681711721685`*^-17", " ", "\[ImaginaryI]"}]}], ",", 
+   RowBox[{"3.599551212651875`*^-17", "-", 
+    RowBox[{"4.163336342344337`*^-17", " ", "\[ImaginaryI]"}]}], ",", 
+   RowBox[{"3.469446951953614`*^-18", "+", 
+    RowBox[{"1.3877787807814457`*^-17", " ", "\[ImaginaryI]"}]}], ",", 
+   RowBox[{"2.636779683484747`*^-16", "+", 
+    RowBox[{"1.8041124150158794`*^-16", " ", "\[ImaginaryI]"}]}]}], 
+  "}"}]], "Output",
+ CellChangeTimes->{3.992804383785055*^9},
+ CellLabel->
+  "Out[2550]=",ExpressionUUID->"af10ba33-a78c-4e3c-a3c0-2c2d89ebc06a"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["alignmentError", "Input",
+ CellLabel->
+  "In[2551]:=",ExpressionUUID->"5d454a3f-0add-4b0a-8805-20873ce8a606"],
+
+Cell[BoxData["5.16749636467497`*^-16"], "Output",
+ CellChangeTimes->{3.9928043837949123`*^9},
+ CellLabel->
+  "Out[2551]=",ExpressionUUID->"5f7eced0-54cb-4af7-a85e-2a8443688770"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["alignmentQ", "Input",
+ CellLabel->
+  "In[2552]:=",ExpressionUUID->"3378307d-6ff3-45bd-828a-eaeac7b46d60"],
+
+Cell[BoxData["True"], "Output",
+ CellChangeTimes->{3.992804383798395*^9},
+ CellLabel->
+  "Out[2552]=",ExpressionUUID->"759f8c1a-8ae2-440f-8edb-88c936a17898"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["7. Spectral rescaling", "Section",ExpressionUUID->"094c77f2-481d-4479-bb13-bb54dfec61b5"],
+
+Cell["Define", "Text",ExpressionUUID->"6497a470-42d7-4fe2-bea3-b6ec650ee875"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{
+   OverscriptBox[
+    SubscriptBox["A", "\[Alpha]"], "~"], "=", 
+   FractionBox[
+    SubscriptBox["A", "\[Alpha]"], 
+    SubscriptBox["\[Lambda]", "1"]]}], TraditionalForm]], "DisplayFormula",Exp\
+ressionUUID->"74c77e33-fcc1-4e7a-90cb-72bd583eaf0d"],
+
+Cell["\<\
+applyATilde[p_List, alpha_?NumericQ] := Module[{n},
+  n = Length[p];
+  applyA[p, alpha]/lambda[n, 1, alpha]
+];\
+\>", "Input",
+ CellLabel->
+  "In[2553]:=",ExpressionUUID->"f84f1a38-5299-41ed-bfd0-c2d7d7d18f23"],
+
+Cell["\<\
+phi1 = fourierVector[nExample, 1];
+aTildeFixError = Norm[N[applyATilde[phi1, alphaExample] - phi1]];
+aTildeFixQ = aTildeFixError < 10^-10;\
+\>", "Input",
+ CellLabel->
+  "In[2554]:=",ExpressionUUID->"05f24194-6191-4351-b698-9a30852a1320"],
+
+Cell[CellGroupData[{
+
+Cell["aTildeFixError", "Input",
+ CellLabel->
+  "In[2557]:=",ExpressionUUID->"145a2240-d7b0-42d9-b96c-3d7210e5c361"],
+
+Cell[BoxData["1.5899003276961253`*^-16"], "Output",
+ CellChangeTimes->{3.992804383812662*^9},
+ CellLabel->
+  "Out[2557]=",ExpressionUUID->"ca4deb57-4b64-4443-9614-4776055ce8d8"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["aTildeFixQ", "Input",
+ CellLabel->
+  "In[2558]:=",ExpressionUUID->"1e706c56-79af-4e33-bd69-5d8750baa62d"],
+
+Cell[BoxData["True"], "Output",
+ CellChangeTimes->{3.992804383816042*^9},
+ CellLabel->
+  "Out[2558]=",ExpressionUUID->"089f7be2-fea8-4a12-aae4-7e20c6fd46c3"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["8. Pair-aligned rescaled operator", "Section",ExpressionUUID->"45069bd8-7835-4c6d-837c-29a7141a4046"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{
+   SubscriptBox["R", "\[Alpha]"], "=", 
+   SuperscriptBox["H", 
+    RowBox[{"-", "1"}]], 
+   OverscriptBox[
+    SubscriptBox["A", "\[Alpha]"], "~"], "H"}], 
+  TraditionalForm]], "DisplayFormula",ExpressionUUID->"def7c317-e0fa-4646-\
+a024-7bc2af0ee0c9"],
+
+Cell["\<\
+applyR[p_List, alpha_?NumericQ, params_Association] :=
+  applyHInverse[
+    applyATilde[applyH[p, params], alpha],
+    params
+  ];
+
+iterateR[p_List, alpha_?NumericQ, params_Association, m_Integer?NonNegative] :=
+  Nest[applyR[#, alpha, params] &, N[p], m];\
+\>", "Input",
+ CellLabel->
+  "In[2559]:=",ExpressionUUID->"86d311f9-5e72-4ce8-863e-feb70ea43af5"],
+
+Cell["\<\
+fixedPairError = Norm[N[applyR[pPair, alphaExample, paramsExample] - pPair]];
+fixedPairQ = fixedPairError < 10^-10;\
+\>", "Input",
+ CellLabel->
+  "In[2562]:=",ExpressionUUID->"920c2e0c-fc09-4ecc-acc8-e69a05f91c8a"],
+
+Cell[CellGroupData[{
+
+Cell["fixedPairError", "Input",
+ CellLabel->
+  "In[2564]:=",ExpressionUUID->"fa893cbd-c08b-4963-a829-628594b6d2d7"],
+
+Cell[BoxData["1.0168498605462348`*^-16"], "Output",
+ CellChangeTimes->{3.992804383830441*^9},
+ CellLabel->
+  "Out[2564]=",ExpressionUUID->"3be1b106-5b72-47f6-969b-08819d5c99bf"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["fixedPairQ", "Input",
+ CellLabel->
+  "In[2565]:=",ExpressionUUID->"174f7249-e840-4ebf-ae74-530025ddae8f"],
+
+Cell[BoxData["True"], "Output",
+ CellChangeTimes->{3.992804383833754*^9},
+ CellLabel->
+  "Out[2565]=",ExpressionUUID->"2bb0570d-4058-43a8-a531-3538d4c0c122"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["9. Real linearity", "Section",ExpressionUUID->"d7323681-b503-4b33-af81-4346a10e65ec"],
+
+Cell["\<\
+SeedRandom[3131];
+uTest = RandomReal[{-1, 1}, nExample] + I RandomReal[{-1, 1}, nExample];
+vTest = RandomReal[{-1, 1}, nExample] + I RandomReal[{-1, 1}, nExample];
+aTest = 1.7;
+bTest = -0.6;
+realLinearityError = Norm[N[
+  applyR[aTest uTest + bTest vTest, alphaExample, paramsExample] -
+  aTest applyR[uTest, alphaExample, paramsExample] -
+  bTest applyR[vTest, alphaExample, paramsExample]
+]];
+realLinearityQ = realLinearityError < 10^-10;\
+\>", "Input",
+ CellLabel->
+  "In[2566]:=",ExpressionUUID->"e78d8653-77f1-4df3-86a8-8bc492db4b91"],
+
+Cell[CellGroupData[{
+
+Cell["realLinearityError", "Input",
+ CellLabel->
+  "In[2573]:=",ExpressionUUID->"291f7c6d-a49b-445e-ba59-2da04bae5a19"],
+
+Cell[BoxData["1.861072919577845`*^-15"], "Output",
+ CellChangeTimes->{3.992804383841301*^9},
+ CellLabel->
+  "Out[2573]=",ExpressionUUID->"20d6d03c-907f-4899-8ebb-6adce8b3440c"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["realLinearityQ", "Input",
+ CellLabel->
+  "In[2574]:=",ExpressionUUID->"cea3a5b3-7dd6-4512-a9bc-a860d96bf4a7"],
+
+Cell[BoxData["True"], "Output",
+ CellChangeTimes->{3.992804383848207*^9},
+ CellLabel->
+  "Out[2574]=",ExpressionUUID->"5a34da6b-c346-460f-a096-37c63bf45227"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["10. Contraction on the complementary subspace", "Section",ExpressionUUID->"fce84091-402a-43cf-8cab-5ccd3ae3f656"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{
+   OverscriptBox["\[Rho]", "^"], "=", 
+   RowBox[{
+    RowBox[{"max", 
+     SubscriptBox["", 
+      RowBox[{"2", "\[LessEqual]", "j", "\[LessEqual]", 
+       RowBox[{"n", "-", "2"}]}]], 
+     FractionBox[
+      SubscriptBox["\[Mu]", "j"], 
+      SubscriptBox["\[Mu]", "1"]]}], "<", "1"}]}], 
+  TraditionalForm]], "DisplayFormula",ExpressionUUID->"56a69a1f-353f-470b-\
+99de-90cc1b47b34c"],
+
+Cell["\<\
+rhoHat[n_Integer?Positive, alpha_?NumericQ] :=
+  Max@Table[mu[n, j, alpha]/mu[n, 1, alpha], {j, 2, n - 2}];
+
+perpendicularDecay[p_List, alpha_?NumericQ, params_Association, \
+m_Integer?NonNegative] :=
+  Norm[perpendicularProjection[iterateR[p, alpha, params, m]]];\
+\>", "Input",
+ CellLabel->
+  "In[2575]:=",ExpressionUUID->"00fd6497-a347-4b96-b73a-070fd0fc41ba"],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+rhoExample = rhoHat[nExample, alphaExample];
+decayTable = Table[
+  {m, perpendicularDecay[pExample, alphaExample, paramsExample, m]},
+  {m, 0, 40, 4}
+];
+{rhoExample, decayTable}\
+\>", "Input",
+ CellLabel->
+  "In[2578]:=",ExpressionUUID->"77b95691-c570-4da2-a087-2c8c030dde63"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{"0.90699906115899`", ",", 
+   RowBox[{"{", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{"0", ",", "2.7781335556224183`"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"4", ",", "2.7501415813436263`"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"8", ",", "1.4777994665772418`"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"12", ",", "0.6644837042660093`"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"16", ",", "0.24605657945640597`"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"20", ",", "0.07135033821723757`"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"24", ",", "0.136282419248123`"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"28", ",", "0.12220467160358034`"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"32", ",", "0.0641094380361915`"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"36", ",", "0.014907059111462095`"}], "}"}], ",", 
+     RowBox[{"{", 
+      RowBox[{"40", ",", "0.022200864289710194`"}], "}"}]}], "}"}]}], 
+  "}"}]], "Output",
+ CellChangeTimes->{3.992804383889021*^9},
+ CellLabel->
+  "Out[2580]=",ExpressionUUID->"01d44e35-b8e1-4509-8f24-0639be0d2d34"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+ListLogPlot[
+  Table[
+    {m, perpendicularDecay[pExample, alphaExample, paramsExample, m]},
+    {m, 0, 60}
+  ],
+  Joined -> True,
+  AxesLabel -> {\"iteration m\", \"perpendicular norm\"},
+  PlotRange -> All,
+  ImageSize -> Large
+]\
+\>", "Input",
+ CellLabel->
+  "In[2581]:=",ExpressionUUID->"cd26ac14-15e5-4b74-98a9-99fdf0e3f7e4"],
+
+Cell[BoxData[
+ GraphicsBox[{{}, 
+   InterpretationBox[{
+     TagBox[{{}, {}, 
+       TagBox[
+        {RGBColor[0.24, 0.6, 0.8], PointSize[0.011000000000000001`], 
+         AbsoluteThickness[2], LineBox[CompressedData["
+1:eJw1zg0s1HEcx/G/pzw05TEWimqmds6VXJ59nKc7h8lCV7Mwxrqtu55obdlN
+qfU4UraKaYVdJprGxE3yULkzhmVmbFc2eaqQKJFqvr//9tt/r733+/6+bumK
+hExDjuOC/p3/f/b5NhRE+MjmQjY0FxKYelm8vesbmUOXupP32XWebAZtc2nf
+fW9mK8yLBuXNXuy+HTJ+rxzd3D5LdsSEy8mBWuNJsjOarCvS11WfyK5QJKg7
+h/4Mk3chXqZw6pt6T96DMmHY7t6yM6837A6tZ6EuAFqyB4oqGy7oPUbI+wCx
+Nrt2bJzMg7YnZXSCP0PmY61YVjJWN08WQGORr0lXLJH3YzCtKqnXcZV8AOsj
+OQNlWQZtG/bGlLIjdPCRMfkgaqLSnprtNCH74DB/erVCZkQWok6kK06pYfcP
+waYlu9ytkCP7wleXt1cxvk7v+eHHEUGu/hSzP8Yu3bjuX84cgC9vGlvkXux+
+IOIzMruN+pmD0P7y7bCynr0XjCtx0zzJB0NyCLh603ebQtj+gJ9J7qJghfZX
+AbcF0phyRzPqoXji21Ryp9GCeijueZaeTV+ypC7C3WsLPaMDVtRFWAs2KpjU
+WFMPgwV/indulvUwCIrcErihrdTDEScKe2iUs4V6OGov6h6fVrP5EahObCyt
+lJJVEUh1SC6vFrMeiV8Vx+OuFrEeCX2DMC9lB83jotBt+krYNcPmRyG1h59s
+ucLeF6NdpzmvrmL7ieE+4aL2yGX7S+DsJjHn5dhQl8CdG93q/MKWejSaWo91
+JAntqUfjwaL1so+5A3UpspTGN58pHKlLYbc8JJcbkLkYKH0S+20XtlGPQVBP
+4olWDzIXi8nvX2s+PmfzY2Gdf0vzU0Hm4uDkGqnSp9m3/QXMph2A
+          "]]},
+        Annotation[#, "Charting`Private`Tag#1"]& ]},
+      {"WolframDynamicHighlight", <|
+       "Label" -> {"XYLabel"}, "Ball" -> {"IndicatedBall"}|>}], 
+     StyleBox[
+      DynamicBox[(Charting`HighlightActionBox["DynamicHighlight", {}, 
+        Slot["HighlightElements"], 
+        Slot["LayoutOptions"], 
+        Slot["Meta"], 
+        Charting`HighlightActionFunction["DynamicHighlight", {{{}, {}, 
+           Annotation[{
+             Hue[0.67, 0.6, 0.6], 
+             Directive[
+              PointSize[0.011000000000000001`], 
+              RGBColor[0.24, 0.6, 0.8], 
+              AbsoluteThickness[2]], 
+             Line[CompressedData["
+1:eJw1zg0s1HEcx/G/pzw05TEWimqmds6VXJ59nKc7h8lCV7Mwxrqtu55obdlN
+qfU4UraKaYVdJprGxE3yULkzhmVmbFc2eaqQKJFqvr//9tt/r733+/6+bumK
+hExDjuOC/p3/f/b5NhRE+MjmQjY0FxKYelm8vesbmUOXupP32XWebAZtc2nf
+fW9mK8yLBuXNXuy+HTJ+rxzd3D5LdsSEy8mBWuNJsjOarCvS11WfyK5QJKg7
+h/4Mk3chXqZw6pt6T96DMmHY7t6yM6837A6tZ6EuAFqyB4oqGy7oPUbI+wCx
+Nrt2bJzMg7YnZXSCP0PmY61YVjJWN08WQGORr0lXLJH3YzCtKqnXcZV8AOsj
+OQNlWQZtG/bGlLIjdPCRMfkgaqLSnprtNCH74DB/erVCZkQWok6kK06pYfcP
+waYlu9ytkCP7wleXt1cxvk7v+eHHEUGu/hSzP8Yu3bjuX84cgC9vGlvkXux+
+IOIzMruN+pmD0P7y7bCynr0XjCtx0zzJB0NyCLh603ebQtj+gJ9J7qJghfZX
+AbcF0phyRzPqoXji21Ryp9GCeijueZaeTV+ypC7C3WsLPaMDVtRFWAs2KpjU
+WFMPgwV/indulvUwCIrcErihrdTDEScKe2iUs4V6OGov6h6fVrP5EahObCyt
+lJJVEUh1SC6vFrMeiV8Vx+OuFrEeCX2DMC9lB83jotBt+krYNcPmRyG1h59s
+ucLeF6NdpzmvrmL7ieE+4aL2yGX7S+DsJjHn5dhQl8CdG93q/MKWejSaWo91
+JAntqUfjwaL1so+5A3UpspTGN58pHKlLYbc8JJcbkLkYKH0S+20XtlGPQVBP
+4olWDzIXi8nvX2s+PmfzY2Gdf0vzU0Hm4uDkGqnSp9m3/QXMph2A
+              "]]}, "Charting`Private`Tag#1"]}}, <|
+         "HighlightElements" -> <|
+           "Label" -> {"XYLabel"}, "Ball" -> {"IndicatedBall"}|>, 
+          "LayoutOptions" -> <|
+           "PanelPlotLayout" -> <||>, 
+            "PlotRange" -> {{0, 60.}, {-6.671244858249807, 
+              1.0750940427639528`}}, 
+            "Frame" -> {{False, False}, {False, False}}, 
+            "AxesOrigin" -> {0, -6.671244858249807}, 
+            "ImageSize" -> {576, 576/GoldenRatio}, "Axes" -> {True, True}, 
+            "LabelStyle" -> {}, "AspectRatio" -> GoldenRatio^(-1), 
+            "DefaultStyle" -> {
+              Directive[
+               PointSize[0.011000000000000001`], 
+               RGBColor[0.24, 0.6, 0.8], 
+               AbsoluteThickness[2]]}, 
+            "HighlightLabelingFunctions" -> <|"CoordinatesToolOptions" -> ({
+                (Identity[#]& )[
+                 Part[#, 1]], 
+                (Exp[#]& )[
+                 Part[#, 2]]}& ), 
+              "ScalingFunctions" -> {{Identity, Identity}, {Log, Exp}}|>, 
+            "Primitives" -> {}, "GCFlag" -> False|>, 
+          "Meta" -> <|
+           "DefaultHighlight" -> {"Dynamic", None}, "Index" -> {}, "Function" -> 
+            ListLogPlot, "GroupHighlight" -> False|>|>]]& )[<|
+        "HighlightElements" -> <|
+          "Label" -> {"XYLabel"}, "Ball" -> {"IndicatedBall"}|>, 
+         "LayoutOptions" -> <|
+          "PanelPlotLayout" -> <||>, 
+           "PlotRange" -> {{0, 60.}, {-6.671244858249807, 
+             1.0750940427639528`}}, 
+           "Frame" -> {{False, False}, {False, False}}, 
+           "AxesOrigin" -> {0, -6.671244858249807}, 
+           "ImageSize" -> {576, 576/GoldenRatio}, "Axes" -> {True, True}, 
+           "LabelStyle" -> {}, "AspectRatio" -> GoldenRatio^(-1), 
+           "DefaultStyle" -> {
+             Directive[
+              PointSize[0.011000000000000001`], 
+              RGBColor[0.24, 0.6, 0.8], 
+              AbsoluteThickness[2]]}, 
+           "HighlightLabelingFunctions" -> <|"CoordinatesToolOptions" -> ({
+               (Identity[#]& )[
+                Part[#, 1]], 
+               (Exp[#]& )[
+                Part[#, 2]]}& ), 
+             "ScalingFunctions" -> {{Identity, Identity}, {Log, Exp}}|>, 
+           "Primitives" -> {}, "GCFlag" -> False|>, 
+         "Meta" -> <|
+          "DefaultHighlight" -> {"Dynamic", None}, "Index" -> {}, "Function" -> 
+           ListLogPlot, "GroupHighlight" -> False|>|>],
+       ImageSizeCache->{{4.503599627370496*^15, -4.503599627370496*^15}, {
+        4.503599627370496*^15, -4.503599627370496*^15}}],
+      Selectable->False]},
+    Annotation[{{{}, {}, 
+       Annotation[{
+         Hue[0.67, 0.6, 0.6], 
+         Directive[
+          PointSize[0.011000000000000001`], 
+          RGBColor[0.24, 0.6, 0.8], 
+          AbsoluteThickness[2]], 
+         Line[CompressedData["
+1:eJw1zg0s1HEcx/G/pzw05TEWimqmds6VXJ59nKc7h8lCV7Mwxrqtu55obdlN
+qfU4UraKaYVdJprGxE3yULkzhmVmbFc2eaqQKJFqvr//9tt/r733+/6+bumK
+hExDjuOC/p3/f/b5NhRE+MjmQjY0FxKYelm8vesbmUOXupP32XWebAZtc2nf
+fW9mK8yLBuXNXuy+HTJ+rxzd3D5LdsSEy8mBWuNJsjOarCvS11WfyK5QJKg7
+h/4Mk3chXqZw6pt6T96DMmHY7t6yM6837A6tZ6EuAFqyB4oqGy7oPUbI+wCx
+Nrt2bJzMg7YnZXSCP0PmY61YVjJWN08WQGORr0lXLJH3YzCtKqnXcZV8AOsj
+OQNlWQZtG/bGlLIjdPCRMfkgaqLSnprtNCH74DB/erVCZkQWok6kK06pYfcP
+waYlu9ytkCP7wleXt1cxvk7v+eHHEUGu/hSzP8Yu3bjuX84cgC9vGlvkXux+
+IOIzMruN+pmD0P7y7bCynr0XjCtx0zzJB0NyCLh603ebQtj+gJ9J7qJghfZX
+AbcF0phyRzPqoXji21Ryp9GCeijueZaeTV+ypC7C3WsLPaMDVtRFWAs2KpjU
+WFMPgwV/indulvUwCIrcErihrdTDEScKe2iUs4V6OGov6h6fVrP5EahObCyt
+lJJVEUh1SC6vFrMeiV8Vx+OuFrEeCX2DMC9lB83jotBt+krYNcPmRyG1h59s
+ucLeF6NdpzmvrmL7ieE+4aL2yGX7S+DsJjHn5dhQl8CdG93q/MKWejSaWo91
+JAntqUfjwaL1so+5A3UpspTGN58pHKlLYbc8JJcbkLkYKH0S+20XtlGPQVBP
+4olWDzIXi8nvX2s+PmfzY2Gdf0vzU0Hm4uDkGqnSp9m3/QXMph2A
+          "]]}, "Charting`Private`Tag#1"]}}, <|
+     "HighlightElements" -> <|
+       "Label" -> {"XYLabel"}, "Ball" -> {"IndicatedBall"}|>, 
+      "LayoutOptions" -> <|
+       "PanelPlotLayout" -> <||>, 
+        "PlotRange" -> {{0, 60.}, {-6.671244858249807, 1.0750940427639528`}}, 
+        "Frame" -> {{False, False}, {False, False}}, 
+        "AxesOrigin" -> {0, -6.671244858249807}, 
+        "ImageSize" -> {576, 576/GoldenRatio}, "Axes" -> {True, True}, 
+        "LabelStyle" -> {}, "AspectRatio" -> GoldenRatio^(-1), "DefaultStyle" -> {
+          Directive[
+           PointSize[0.011000000000000001`], 
+           RGBColor[0.24, 0.6, 0.8], 
+           AbsoluteThickness[2]]}, 
+        "HighlightLabelingFunctions" -> <|"CoordinatesToolOptions" -> ({
+            (Identity[#]& )[
+             Part[#, 1]], 
+            (Exp[#]& )[
+             Part[#, 2]]}& ), 
+          "ScalingFunctions" -> {{Identity, Identity}, {Log, Exp}}|>, 
+        "Primitives" -> {}, "GCFlag" -> False|>, 
+      "Meta" -> <|
+       "DefaultHighlight" -> {"Dynamic", None}, "Index" -> {}, "Function" -> 
+        ListLogPlot, "GroupHighlight" -> False|>|>, 
+     "DynamicHighlight"]], {{}, {}}},
+  AspectRatio->NCache[GoldenRatio^(-1), 0.6180339887498948],
+  Axes->{True, True},
+  AxesLabel->{
+    FormBox[
+     TagBox["\"iteration m\"", HoldForm], TraditionalForm], 
+    FormBox[
+     TagBox["\"perpendicular norm\"", HoldForm], TraditionalForm]},
+  AxesOrigin->{0, -6.671244858249807},
+  DefaultBaseStyle->{"PlotGraphics", "Graphics"},
+  DisplayFunction->Identity,
+  Frame->{{False, False}, {False, False}},
+  FrameLabel->{{None, None}, {None, None}},
+  FrameTicks->{{
+     Charting`ScaledTicks[{Log, Exp}, {Log, Exp}, "Nice", WorkingPrecision -> 
+      15.954589770191003`, RotateLabel -> 0], 
+     Charting`ScaledFrameTicks[{Log, Exp}]}, {Automatic, Automatic}},
+  GridLines->{None, None},
+  GridLinesStyle->Directive[
+    GrayLevel[0.5, 0.4]],
+  ImageSize->Large,
+  Method->{
+   "AxisPadding" -> Scaled[0.02], "DefaultBoundaryStyle" -> Automatic, 
+    "DefaultGraphicsInteraction" -> {
+     "Version" -> 1.2, "TrackMousePosition" -> {True, False}, 
+      "Effects" -> {
+       "Highlight" -> {"ratio" -> 2}, "HighlightPoint" -> {"ratio" -> 2}, 
+        "Droplines" -> {
+         "freeformCursorMode" -> True, 
+          "placement" -> {"x" -> "All", "y" -> "None"}}}}, "DefaultMeshStyle" -> 
+    AbsolutePointSize[6], "DefaultPlotStyle" -> {
+      Directive[
+       RGBColor[0.24, 0.6, 0.8], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.95, 0.627, 0.1425], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.455, 0.7, 0.21], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.922526, 0.385626, 0.209179], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.578, 0.51, 0.85], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.772079, 0.431554, 0.102387], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.4, 0.64, 1.], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[1., 0.75, 0.], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.8, 0.4, 0.76], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.637, 0.65, 0.], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.915, 0.3325, 0.2125], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.40082222609352647`, 0.5220066643438841, 0.85], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.9728288904374106, 0.621644452187053, 0.07336199581899142], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.736782672705901, 0.358, 0.5030266573755369], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.28026441037696703`, 0.715, 0.4292089322474965], 
+       AbsoluteThickness[2]]}, "DomainPadding" -> Scaled[0.02], 
+    "PointSizeFunction" -> "SmallPointSize", "RangePadding" -> Scaled[0.05], 
+    "OptimizePlotMarkers" -> True, "IncludeHighlighting" -> Automatic, 
+    "HighlightStyle" -> Automatic, "OptimizePlotMarkers" -> True, 
+    "IncludeHighlighting" -> "CurrentSet", "HighlightStyle" -> Automatic, 
+    "OptimizePlotMarkers" -> True, 
+    "CoordinatesToolOptions" -> {"DisplayFunction" -> ({
+        (Identity[#]& )[
+         Part[#, 1]], 
+        (Exp[#]& )[
+         Part[#, 2]]}& ), "CopiedValueFunction" -> ({
+        (Identity[#]& )[
+         Part[#, 1]], 
+        (Exp[#]& )[
+         Part[#, 2]]}& )}},
+  PlotInteractivity:>True,
+  PlotRange->{{0, 60.}, {-6.671244858249807, 1.0750940427639528`}},
+  PlotRangeClipping->True,
+  PlotRangePadding->{{
+     Scaled[0.02], 
+     Scaled[0.02]}, {
+     Scaled[0.02], 
+     Scaled[0.05]}},
+  Ticks->{Automatic, 
+    Charting`ScaledTicks[{Log, Exp}, {Log, Exp}, "Nice", WorkingPrecision -> 
+     15.954589770191003`, RotateLabel -> 0]}]], "Output",
+ CellChangeTimes->{3.992804384213038*^9},
+ CellLabel->
+  "Out[2581]=",ExpressionUUID->"f39eecf9-eb47-42dd-bb7c-a30765c14c54"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["11. Convergence to the initial first harmonic", "Section",ExpressionUUID->"ff019b07-0f9b-40fd-9df6-15d66301ce45"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{
+   UnderscriptBox["lim", 
+    RowBox[{"m", "\[Rule]", "\[Infinity]"}]], 
+   SuperscriptBox[
+    SubscriptBox["R", "\[Alpha]"], "m"], "p", "=", 
+   SubscriptBox["p", 
+    RowBox[{"\[PlusMinus]", "1"}]]}], TraditionalForm]], "DisplayFormula",Expr\
+essionUUID->"a2649ca9-1312-4041-b3a2-c93b997adf0d"],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+limitError[p_List, alpha_?NumericQ, params_Association, \
+m_Integer?NonNegative] :=
+  Norm[N[iterateR[p, alpha, params, m] - pairPlaneProjection[p]]];
+
+limitTable = Table[
+  {m, limitError[pExample, alphaExample, paramsExample, m]},
+  {m, 0, 60, 5}
+];
+limitTable // TableForm\
+\>", "Input",
+ CellLabel->
+  "In[2582]:=",ExpressionUUID->"ef134c70-18b7-4c0f-a496-73037e7a8ecd"],
+
+Cell[BoxData[
+ TagBox[GridBox[{
+    {"0", "2.7781335556224183`"},
+    {"5", "2.456375898165954`"},
+    {"10", "0.9954652869600387`"},
+    {"15", "0.33106652845306034`"},
+    {"20", "0.07135033821723756`"},
+    {"25", "0.14021623169332303`"},
+    {"30", "0.09497481979113788`"},
+    {"35", "0.023628422011874962`"},
+    {"40", "0.022200864289710194`"},
+    {"45", "0.023171626110271275`"},
+    {"50", "0.009898199965430673`"},
+    {"55", "0.002475318159217854`"},
+    {"60", "0.0047691701301853465`"}
+   },
+   GridBoxAlignment->{"Columns" -> {{Left}}, "Rows" -> {{Baseline}}},
+   GridBoxSpacings->{"Columns" -> {
+       Offset[0.27999999999999997`], {
+        Offset[2.0999999999999996`]}, 
+       Offset[0.27999999999999997`]}, "Rows" -> {
+       Offset[0.2], {
+        Offset[0.4]}, 
+       Offset[0.2]}}],
+  Function[BoxForm`e$, 
+   TableForm[BoxForm`e$]]]], "Output",
+ CellChangeTimes->{3.9928043843103943`*^9},
+ CellLabel->
+  "Out[2585]//TableForm=",ExpressionUUID->"063552e7-5d40-4d17-aa3c-\
+8e4cf9da1103"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+ListLogPlot[
+  Table[
+    {m, limitError[pExample, alphaExample, paramsExample, m]},
+    {m, 0, 80}
+  ],
+  Joined -> True,
+  AxesLabel -> {\"iteration m\", \"distance to initial first harmonic\"},
+  PlotRange -> All,
+  ImageSize -> Large
+]\
+\>", "Input",
+ CellLabel->
+  "In[2586]:=",ExpressionUUID->"8a6c8ea7-5ce8-4644-bede-44a0e727af60"],
+
+Cell[BoxData[
+ GraphicsBox[{{}, 
+   InterpretationBox[{
+     TagBox[{{}, {}, 
+       TagBox[
+        {RGBColor[0.24, 0.6, 0.8], PointSize[0.011000000000000001`], 
+         AbsoluteThickness[2], LineBox[CompressedData["
+1:eJw1zgtMk2cUxvEPixNEhwUvBFqkIIqmFpijcueh5dJSLG0pKhpUUKahjuJl
+sM1oGowzc0pQMpMhBoNoOgZCJNQLVQFlU0okckszIWE6URAnIOCGF7aF8zb5
+0vzyzznvEWUZddlzOI7T/vf9/89+oQ3H4kPSR2NmNRoTueOowrP1NZlDq/me
++LnPGNkJtptlHT+uY16EcVmX4WYgm1+MXe+mN7u0jJA9MCjM6bzi+IIswHV+
+ZdaM6QnZB0ad+V7vRzvZF8p0o1fH0H3yCgilcr+H5/ffmfVKdKwttkWgjRyA
+oksNXw8E/E5eAyja9lzpf0oW40F7Rt+g5CVZgg8l6Wf7a8fIQbDOL7RmGafI
+wejKvLzxocd78mfgHud3nt/t0DTrdRjKuxvbdc6R/DmqEzMvOi2fSw6BVjL8
+vjKdR5aiVmYryahm8+vh3rinXFTMkUMRajuy2vh0ht4Lw6Q+qGAglzkcfYdP
+fB9ezhyBV82WRkMgm4+EZlf2A94j5ii01P9qz7vK3ovGUfWwWNkzhxwDh6vz
+fvskht0PhM8tmAiapvtNwKkgVXK5hxP1WFSEXj9bZJlPPRYla8sOZE0tpC7D
+mePj7X2di6jL8CGad+yFlU9dDmfJkPjgCOtyBJ4W6bheV+pxUMvkpbz8T6nH
+oeZb24V9ZrY/HlVplrJLKrIpHtuXbSqvUrCegH8qt6q/O816AgYapEcyvGkf
+l4i2eTekrS/Z/kTsaJdsWjjN3leg2Wb9ynyZ3aeA/6DQHFDA7ldCKFI6i/Pd
+qCuxiutzFdS5U09C4+0tdzdKl1BPQukE/22I8zLqKhjyHH/42ehBXYWlb3sN
+Bgcyl4wDIWmP3MeXUk9GVHva9tsBZG4Dht/8Vf1HDdu/AfzCk9a/jWRODYFP
+gmkgk3U1erb5u+YeYj0Fx+2H9M+usZ6CrXeK9ROL2X4N5Kv5rdIzZGjg94vq
+lCiY7jdpcKtw1JYySW7SYEnu4wWKZ+x+LdZ7veu1u3jSvBZ5e2u7477xonkt
+LBo3z/owIc1rkdN92HHnK2+a10H/pX9LjstymtfBXi9yKOOom3RYmeHd+ZOQ
+zesQN7lf/PGkgOZTUVRVt+aLaDJSoWnmrZr2JZtS8afrWFhkMLkpFZsrpmpO
+7GTzehQcjPIdsQia/gW0tXbI
+          "]]},
+        Annotation[#, "Charting`Private`Tag#1"]& ]},
+      {"WolframDynamicHighlight", <|
+       "Label" -> {"XYLabel"}, "Ball" -> {"IndicatedBall"}|>}], 
+     StyleBox[
+      DynamicBox[(Charting`HighlightActionBox["DynamicHighlight", {}, 
+        Slot["HighlightElements"], 
+        Slot["LayoutOptions"], 
+        Slot["Meta"], 
+        Charting`HighlightActionFunction["DynamicHighlight", {{{}, {}, 
+           Annotation[{
+             Hue[0.67, 0.6, 0.6], 
+             Directive[
+              PointSize[0.011000000000000001`], 
+              RGBColor[0.24, 0.6, 0.8], 
+              AbsoluteThickness[2]], 
+             Line[CompressedData["
+1:eJw1zgtMk2cUxvEPixNEhwUvBFqkIIqmFpijcueh5dJSLG0pKhpUUKahjuJl
+sM1oGowzc0pQMpMhBoNoOgZCJNQLVQFlU0okckszIWE6URAnIOCGF7aF8zb5
+0vzyzznvEWUZddlzOI7T/vf9/89+oQ3H4kPSR2NmNRoTueOowrP1NZlDq/me
++LnPGNkJtptlHT+uY16EcVmX4WYgm1+MXe+mN7u0jJA9MCjM6bzi+IIswHV+
+ZdaM6QnZB0ad+V7vRzvZF8p0o1fH0H3yCgilcr+H5/ffmfVKdKwttkWgjRyA
+oksNXw8E/E5eAyja9lzpf0oW40F7Rt+g5CVZgg8l6Wf7a8fIQbDOL7RmGafI
+wejKvLzxocd78mfgHud3nt/t0DTrdRjKuxvbdc6R/DmqEzMvOi2fSw6BVjL8
+vjKdR5aiVmYryahm8+vh3rinXFTMkUMRajuy2vh0ht4Lw6Q+qGAglzkcfYdP
+fB9ezhyBV82WRkMgm4+EZlf2A94j5ii01P9qz7vK3ovGUfWwWNkzhxwDh6vz
+fvskht0PhM8tmAiapvtNwKkgVXK5hxP1WFSEXj9bZJlPPRYla8sOZE0tpC7D
+mePj7X2di6jL8CGad+yFlU9dDmfJkPjgCOtyBJ4W6bheV+pxUMvkpbz8T6nH
+oeZb24V9ZrY/HlVplrJLKrIpHtuXbSqvUrCegH8qt6q/O816AgYapEcyvGkf
+l4i2eTekrS/Z/kTsaJdsWjjN3leg2Wb9ynyZ3aeA/6DQHFDA7ldCKFI6i/Pd
+qCuxiutzFdS5U09C4+0tdzdKl1BPQukE/22I8zLqKhjyHH/42ehBXYWlb3sN
+Bgcyl4wDIWmP3MeXUk9GVHva9tsBZG4Dht/8Vf1HDdu/AfzCk9a/jWRODYFP
+gmkgk3U1erb5u+YeYj0Fx+2H9M+usZ6CrXeK9ROL2X4N5Kv5rdIzZGjg94vq
+lCiY7jdpcKtw1JYySW7SYEnu4wWKZ+x+LdZ7veu1u3jSvBZ5e2u7477xonkt
+LBo3z/owIc1rkdN92HHnK2+a10H/pX9LjstymtfBXi9yKOOom3RYmeHd+ZOQ
+zesQN7lf/PGkgOZTUVRVt+aLaDJSoWnmrZr2JZtS8afrWFhkMLkpFZsrpmpO
+7GTzehQcjPIdsQia/gW0tXbI
+              "]]}, "Charting`Private`Tag#1"]}}, <|
+         "HighlightElements" -> <|
+           "Label" -> {"XYLabel"}, "Ball" -> {"IndicatedBall"}|>, 
+          "LayoutOptions" -> <|
+           "PanelPlotLayout" -> <||>, 
+            "PlotRange" -> {{0, 80.}, {-8.452635636761805, 
+              1.075094042763953}}, 
+            "Frame" -> {{False, False}, {False, False}}, 
+            "AxesOrigin" -> {0, -8.452635636761805}, 
+            "ImageSize" -> {576, 576/GoldenRatio}, "Axes" -> {True, True}, 
+            "LabelStyle" -> {}, "AspectRatio" -> GoldenRatio^(-1), 
+            "DefaultStyle" -> {
+              Directive[
+               PointSize[0.011000000000000001`], 
+               RGBColor[0.24, 0.6, 0.8], 
+               AbsoluteThickness[2]]}, 
+            "HighlightLabelingFunctions" -> <|"CoordinatesToolOptions" -> ({
+                (Identity[#]& )[
+                 Part[#, 1]], 
+                (Exp[#]& )[
+                 Part[#, 2]]}& ), 
+              "ScalingFunctions" -> {{Identity, Identity}, {Log, Exp}}|>, 
+            "Primitives" -> {}, "GCFlag" -> False|>, 
+          "Meta" -> <|
+           "DefaultHighlight" -> {"Dynamic", None}, "Index" -> {}, "Function" -> 
+            ListLogPlot, "GroupHighlight" -> False|>|>]]& )[<|
+        "HighlightElements" -> <|
+          "Label" -> {"XYLabel"}, "Ball" -> {"IndicatedBall"}|>, 
+         "LayoutOptions" -> <|
+          "PanelPlotLayout" -> <||>, 
+           "PlotRange" -> {{0, 80.}, {-8.452635636761805, 1.075094042763953}},
+            "Frame" -> {{False, False}, {False, False}}, 
+           "AxesOrigin" -> {0, -8.452635636761805}, 
+           "ImageSize" -> {576, 576/GoldenRatio}, "Axes" -> {True, True}, 
+           "LabelStyle" -> {}, "AspectRatio" -> GoldenRatio^(-1), 
+           "DefaultStyle" -> {
+             Directive[
+              PointSize[0.011000000000000001`], 
+              RGBColor[0.24, 0.6, 0.8], 
+              AbsoluteThickness[2]]}, 
+           "HighlightLabelingFunctions" -> <|"CoordinatesToolOptions" -> ({
+               (Identity[#]& )[
+                Part[#, 1]], 
+               (Exp[#]& )[
+                Part[#, 2]]}& ), 
+             "ScalingFunctions" -> {{Identity, Identity}, {Log, Exp}}|>, 
+           "Primitives" -> {}, "GCFlag" -> False|>, 
+         "Meta" -> <|
+          "DefaultHighlight" -> {"Dynamic", None}, "Index" -> {}, "Function" -> 
+           ListLogPlot, "GroupHighlight" -> False|>|>],
+       ImageSizeCache->{{4.503599627370496*^15, -4.503599627370496*^15}, {
+        4.503599627370496*^15, -4.503599627370496*^15}}],
+      Selectable->False]},
+    Annotation[{{{}, {}, 
+       Annotation[{
+         Hue[0.67, 0.6, 0.6], 
+         Directive[
+          PointSize[0.011000000000000001`], 
+          RGBColor[0.24, 0.6, 0.8], 
+          AbsoluteThickness[2]], 
+         Line[CompressedData["
+1:eJw1zgtMk2cUxvEPixNEhwUvBFqkIIqmFpijcueh5dJSLG0pKhpUUKahjuJl
+sM1oGowzc0pQMpMhBoNoOgZCJNQLVQFlU0okckszIWE6URAnIOCGF7aF8zb5
+0vzyzznvEWUZddlzOI7T/vf9/89+oQ3H4kPSR2NmNRoTueOowrP1NZlDq/me
++LnPGNkJtptlHT+uY16EcVmX4WYgm1+MXe+mN7u0jJA9MCjM6bzi+IIswHV+
+ZdaM6QnZB0ad+V7vRzvZF8p0o1fH0H3yCgilcr+H5/ffmfVKdKwttkWgjRyA
+oksNXw8E/E5eAyja9lzpf0oW40F7Rt+g5CVZgg8l6Wf7a8fIQbDOL7RmGafI
+wejKvLzxocd78mfgHud3nt/t0DTrdRjKuxvbdc6R/DmqEzMvOi2fSw6BVjL8
+vjKdR5aiVmYryahm8+vh3rinXFTMkUMRajuy2vh0ht4Lw6Q+qGAglzkcfYdP
+fB9ezhyBV82WRkMgm4+EZlf2A94j5ii01P9qz7vK3ovGUfWwWNkzhxwDh6vz
+fvskht0PhM8tmAiapvtNwKkgVXK5hxP1WFSEXj9bZJlPPRYla8sOZE0tpC7D
+mePj7X2di6jL8CGad+yFlU9dDmfJkPjgCOtyBJ4W6bheV+pxUMvkpbz8T6nH
+oeZb24V9ZrY/HlVplrJLKrIpHtuXbSqvUrCegH8qt6q/O816AgYapEcyvGkf
+l4i2eTekrS/Z/kTsaJdsWjjN3leg2Wb9ynyZ3aeA/6DQHFDA7ldCKFI6i/Pd
+qCuxiutzFdS5U09C4+0tdzdKl1BPQukE/22I8zLqKhjyHH/42ehBXYWlb3sN
+Bgcyl4wDIWmP3MeXUk9GVHva9tsBZG4Dht/8Vf1HDdu/AfzCk9a/jWRODYFP
+gmkgk3U1erb5u+YeYj0Fx+2H9M+usZ6CrXeK9ROL2X4N5Kv5rdIzZGjg94vq
+lCiY7jdpcKtw1JYySW7SYEnu4wWKZ+x+LdZ7veu1u3jSvBZ5e2u7477xonkt
+LBo3z/owIc1rkdN92HHnK2+a10H/pX9LjstymtfBXi9yKOOom3RYmeHd+ZOQ
+zesQN7lf/PGkgOZTUVRVt+aLaDJSoWnmrZr2JZtS8afrWFhkMLkpFZsrpmpO
+7GTzehQcjPIdsQia/gW0tXbI
+          "]]}, "Charting`Private`Tag#1"]}}, <|
+     "HighlightElements" -> <|
+       "Label" -> {"XYLabel"}, "Ball" -> {"IndicatedBall"}|>, 
+      "LayoutOptions" -> <|
+       "PanelPlotLayout" -> <||>, 
+        "PlotRange" -> {{0, 80.}, {-8.452635636761805, 1.075094042763953}}, 
+        "Frame" -> {{False, False}, {False, False}}, 
+        "AxesOrigin" -> {0, -8.452635636761805}, 
+        "ImageSize" -> {576, 576/GoldenRatio}, "Axes" -> {True, True}, 
+        "LabelStyle" -> {}, "AspectRatio" -> GoldenRatio^(-1), "DefaultStyle" -> {
+          Directive[
+           PointSize[0.011000000000000001`], 
+           RGBColor[0.24, 0.6, 0.8], 
+           AbsoluteThickness[2]]}, 
+        "HighlightLabelingFunctions" -> <|"CoordinatesToolOptions" -> ({
+            (Identity[#]& )[
+             Part[#, 1]], 
+            (Exp[#]& )[
+             Part[#, 2]]}& ), 
+          "ScalingFunctions" -> {{Identity, Identity}, {Log, Exp}}|>, 
+        "Primitives" -> {}, "GCFlag" -> False|>, 
+      "Meta" -> <|
+       "DefaultHighlight" -> {"Dynamic", None}, "Index" -> {}, "Function" -> 
+        ListLogPlot, "GroupHighlight" -> False|>|>, 
+     "DynamicHighlight"]], {{}, {}}},
+  AspectRatio->NCache[GoldenRatio^(-1), 0.6180339887498948],
+  Axes->{True, True},
+  AxesLabel->{
+    FormBox[
+     TagBox["\"iteration m\"", HoldForm], TraditionalForm], 
+    FormBox[
+     TagBox["\"distance to initial first harmonic\"", HoldForm], 
+     TraditionalForm]},
+  AxesOrigin->{0, -8.452635636761805},
+  DefaultBaseStyle->{"PlotGraphics", "Graphics"},
+  DisplayFunction->Identity,
+  Frame->{{False, False}, {False, False}},
+  FrameLabel->{{None, None}, {None, None}},
+  FrameTicks->{{
+     Charting`ScaledTicks[{Log, Exp}, {Log, Exp}, "Nice", WorkingPrecision -> 
+      15.954589770191003`, RotateLabel -> 0], 
+     Charting`ScaledFrameTicks[{Log, Exp}]}, {Automatic, Automatic}},
+  GridLines->{None, None},
+  GridLinesStyle->Directive[
+    GrayLevel[0.5, 0.4]],
+  ImageSize->Large,
+  Method->{
+   "AxisPadding" -> Scaled[0.02], "DefaultBoundaryStyle" -> Automatic, 
+    "DefaultGraphicsInteraction" -> {
+     "Version" -> 1.2, "TrackMousePosition" -> {True, False}, 
+      "Effects" -> {
+       "Highlight" -> {"ratio" -> 2}, "HighlightPoint" -> {"ratio" -> 2}, 
+        "Droplines" -> {
+         "freeformCursorMode" -> True, 
+          "placement" -> {"x" -> "All", "y" -> "None"}}}}, "DefaultMeshStyle" -> 
+    AbsolutePointSize[6], "DefaultPlotStyle" -> {
+      Directive[
+       RGBColor[0.24, 0.6, 0.8], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.95, 0.627, 0.1425], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.455, 0.7, 0.21], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.922526, 0.385626, 0.209179], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.578, 0.51, 0.85], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.772079, 0.431554, 0.102387], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.4, 0.64, 1.], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[1., 0.75, 0.], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.8, 0.4, 0.76], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.637, 0.65, 0.], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.915, 0.3325, 0.2125], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.40082222609352647`, 0.5220066643438841, 0.85], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.9728288904374106, 0.621644452187053, 0.07336199581899142], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.736782672705901, 0.358, 0.5030266573755369], 
+       AbsoluteThickness[2]], 
+      Directive[
+       RGBColor[0.28026441037696703`, 0.715, 0.4292089322474965], 
+       AbsoluteThickness[2]]}, "DomainPadding" -> Scaled[0.02], 
+    "PointSizeFunction" -> "SmallPointSize", "RangePadding" -> Scaled[0.05], 
+    "OptimizePlotMarkers" -> True, "IncludeHighlighting" -> Automatic, 
+    "HighlightStyle" -> Automatic, "OptimizePlotMarkers" -> True, 
+    "IncludeHighlighting" -> "CurrentSet", "HighlightStyle" -> Automatic, 
+    "OptimizePlotMarkers" -> True, 
+    "CoordinatesToolOptions" -> {"DisplayFunction" -> ({
+        (Identity[#]& )[
+         Part[#, 1]], 
+        (Exp[#]& )[
+         Part[#, 2]]}& ), "CopiedValueFunction" -> ({
+        (Identity[#]& )[
+         Part[#, 1]], 
+        (Exp[#]& )[
+         Part[#, 2]]}& )}},
+  PlotInteractivity:>True,
+  PlotRange->{{0, 80.}, {-8.452635636761805, 1.075094042763953}},
+  PlotRangeClipping->True,
+  PlotRangePadding->{{
+     Scaled[0.02], 
+     Scaled[0.02]}, {
+     Scaled[0.02], 
+     Scaled[0.05]}},
+  Ticks->{Automatic, 
+    Charting`ScaledTicks[{Log, Exp}, {Log, Exp}, "Nice", WorkingPrecision -> 
+     15.954589770191003`, RotateLabel -> 0]}]], "Output",
+ CellChangeTimes->{3.9928043846457644`*^9},
+ CellLabel->
+  "Out[2586]=",ExpressionUUID->"8e69fb21-1828-46eb-80c3-b95f9724774d"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["12. Elliptic limit geometry", "Section",ExpressionUUID->"b85e2f12-1b91-4fa7-b8bb-4d2d59a6f4a3"],
+
+Cell["The limiting first harmonic has semi-axis lengths", "Text",ExpressionUUID->"c5c650f7-aa8e-4d34-a0b4-2a00cdeccea9"],
+
+Cell[BoxData[
+ FormBox[
+  RowBox[{"a", "=", 
+   RowBox[{"|", 
+    SubscriptBox["c", "1"], "|"}], "+", 
+   RowBox[{"|", 
+    SubscriptBox["c", 
+     RowBox[{"n", "-", "1"}]], "|"}], ",", "\[ThickSpace]", "b", "=", 
+   RowBox[{"|", 
+    RowBox[{
+     RowBox[{"|", 
+      SubscriptBox["c", "1"], "|"}], "-", 
+     RowBox[{"|", 
+      SubscriptBox["c", 
+       RowBox[{"n", "-", "1"}]], "|"}]}], "|"}]}], 
+  TraditionalForm]], "DisplayFormula",ExpressionUUID->"1deef465-1adc-4a9a-\
+8eac-1241ed732fbd"],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+ellipseSemiAxes[p_List] := Module[{data, c1, cN},
+  data = firstHarmonicData[p];
+  c1 = data[\"c1\"];
+  cN = data[\"cNMinus1\"];
+  {Abs[c1] + Abs[cN], Abs[Abs[c1] - Abs[cN]]}
+];
+
+ellipseSemiAxes[pExample]\
+\>", "Input",
+ CellLabel->
+  "In[2587]:=",ExpressionUUID->"2f777da1-c746-42c4-b3b7-7c50981d87b2"],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{"0.7695957605672498`", ",", "0.14099845721561866`"}], 
+  "}"}]], "Output",
+ CellChangeTimes->{3.992804384742382*^9},
+ CellLabel->
+  "Out[2589]=",ExpressionUUID->"464f965c-2ef7-4a58-9b1f-4ead5a4e42e9"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["13. Polygon visualization", "Section",ExpressionUUID->"924cc921-3c7b-43ce-b4ba-4ed761489278"],
+
+Cell["\<\
+polygonPoints[p_List] :=
+  N@Transpose[{Re[N[p]], Im[N[p]]}];
+
+polygonPlot[p_List, title_] := Module[{pts},
+  pts = polygonPoints[p];
+  Graphics[
+    {
+      Thick,
+      Line[Append[pts, First[pts]]],
+      PointSize[0.018],
+      Point[pts]
+    },
+    Axes -> True,
+    AspectRatio -> 1,
+    PlotRange -> All,
+    PlotLabel -> title,
+    ImageSize -> Large
+  ]
+];\
+\>", "Input",
+ CellLabel->
+  "In[2590]:=",ExpressionUUID->"e1d6299a-2848-4598-9465-9e53982835e3"],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+GraphicsRow[
+  {
+    polygonPlot[pExample, \"Initial centered polygon\"],
+    polygonPlot[pPair, \"Initial first harmonic\"],
+    polygonPlot[alignedPair, \"Canonical aligned first harmonic\"]
+  },
+  ImageSize -> Large
+]\
+\>", "Input",
+ CellLabel->
+  "In[2593]:=",ExpressionUUID->"358c7c87-e9d5-4907-baa3-685e4c864a1a"],
+
+Cell[BoxData[
+ GraphicsBox[{{}, {InsetBox[
+     GraphicsBox[
+      {Thickness[Large], 
+       LineBox[{{0.3824525514960536, -0.5314006184707869}, {
+        0.13776234348537264`, 0.8870581516324918}, {-0.3128716419776548, 
+        0.33247888763320005`}, {-0.8485612479189965, -0.42954801580923957`}, {
+        0.9419808857410757, -0.7392227712724384}, {0.3050237900632845, 
+        0.5942243917365568}, {0.6030208850200759, 
+        0.20080789240052938`}, {-0.19425117136646441`, -0.5287394428737755}, \
+{-0.7092151052929133, -0.28087020230012333`}, {0.6042265902844394, 
+        1.0989095244240519`}, {-0.201797664239041, 
+        0.011973901230433806`}, {-0.7077702152952318, -0.6156716983308999}, {
+        0.3824525514960536, -0.5314006184707869}}], 
+       {PointSize[0.018], 
+        PointBox[{{0.3824525514960536, -0.5314006184707869}, {
+         0.13776234348537264`, 0.8870581516324918}, {-0.3128716419776548, 
+         0.33247888763320005`}, {-0.8485612479189965, -0.42954801580923957`}, \
+{0.9419808857410757, -0.7392227712724384}, {0.3050237900632845, 
+         0.5942243917365568}, {0.6030208850200759, 
+         0.20080789240052938`}, {-0.19425117136646441`, -0.5287394428737755}, \
+{-0.7092151052929133, -0.28087020230012333`}, {0.6042265902844394, 
+         1.0989095244240519`}, {-0.201797664239041, 
+         0.011973901230433806`}, {-0.7077702152952318, \
+-0.6156716983308999}}]}},
+      AspectRatio->1,
+      Axes->True,
+      ImageSize->Large,
+      PlotLabel->FormBox["\"Initial centered polygon\"", TraditionalForm],
+      PlotRange->All], {103.2, -112.79325515020685}, 
+     ImageScaled[{0.5, 0.5}], {192., 211.1865103004137},
+     BaseStyle->{Graphics3DBoxOptions -> {SphericalRegion -> False}}], 
+    InsetBox[
+     GraphicsBox[
+      {Thickness[Large], 
+       LineBox[{{-0.19730984600601115`, 
+        0.021396717311370987`}, {-0.12475861319607033`, \
+-0.009385749775919494}, {-0.01877841073141564, -0.037653312790391746`}, {
+        0.09223345172386183, -0.05583170105032208}, {
+        0.1785314352745955, -0.05905003010176274}, {
+        0.21699206491993211`, -0.04644595127440258}, {
+        0.19730984600601115`, -0.021396717311370987`}, {0.12475861319607033`, 
+        0.009385749775919494}, {0.01877841073141557, 
+        0.037653312790391746`}, {-0.09223345172386183, 
+        0.05583170105032208}, {-0.17853143527459553`, 
+        0.05905003010176273}, {-0.21699206491993211`, 
+        0.04644595127440258}, {-0.19730984600601115`, 
+        0.021396717311370987`}}], 
+       {PointSize[0.018], 
+        PointBox[{{-0.19730984600601115`, 
+         0.021396717311370987`}, {-0.12475861319607033`, \
+-0.009385749775919494}, {-0.01877841073141564, -0.037653312790391746`}, {
+         0.09223345172386183, -0.05583170105032208}, {
+         0.1785314352745955, -0.05905003010176274}, {
+         0.21699206491993211`, -0.04644595127440258}, {
+         0.19730984600601115`, -0.021396717311370987`}, {0.12475861319607033`,
+          0.009385749775919494}, {0.01877841073141557, 
+         0.037653312790391746`}, {-0.09223345172386183, 
+         0.05583170105032208}, {-0.17853143527459553`, 
+         0.05905003010176273}, {-0.21699206491993211`, 
+         0.04644595127440258}}]}},
+      AspectRatio->1,
+      Axes->True,
+      ImageSize->Large,
+      PlotLabel->FormBox["\"Initial first harmonic\"", TraditionalForm],
+      PlotRange->All], {309.6, -112.79325515020685}, 
+     ImageScaled[{0.5, 0.5}], {192., 211.1865103004137},
+     BaseStyle->{Graphics3DBoxOptions -> {SphericalRegion -> False}}], 
+    InsetBox[
+     GraphicsBox[
+      {Thickness[Large], 
+       LineBox[{{-0.19759251831343572`, -0.10155622218002297`}, \
+{-0.12034202936716576`, -0.18674652747699458`}, {-0.010845990836441222`, \
+-0.2218982515471889}, {0.10155622218002311`, -0.19759251831343588`}, {
+        0.1867465274769945, -0.120342029367166}, {
+        0.22189825154718879`, -0.010845990836441395`}, {0.19759251831343572`, 
+        0.10155622218002297`}, {0.12034202936716576`, 0.18674652747699458`}, {
+        0.010845990836441152`, 0.22189825154718884`}, {-0.10155622218002311`, 
+        0.19759251831343588`}, {-0.18674652747699455`, 
+        0.12034202936716587`}, {-0.22189825154718879`, 
+        0.010845990836441395`}, {-0.19759251831343572`, \
+-0.10155622218002297`}}], 
+       {PointSize[0.018], 
+        PointBox[{{-0.19759251831343572`, -0.10155622218002297`}, \
+{-0.12034202936716576`, -0.18674652747699458`}, {-0.010845990836441222`, \
+-0.2218982515471889}, {0.10155622218002311`, -0.19759251831343588`}, {
+         0.1867465274769945, -0.120342029367166}, {
+         0.22189825154718879`, -0.010845990836441395`}, {0.19759251831343572`,
+          0.10155622218002297`}, {0.12034202936716576`, 
+         0.18674652747699458`}, {0.010845990836441152`, 
+         0.22189825154718884`}, {-0.10155622218002311`, 
+         0.19759251831343588`}, {-0.18674652747699455`, 
+         0.12034202936716587`}, {-0.22189825154718879`, 
+         0.010845990836441395`}}]}},
+      AspectRatio->1,
+      Axes->True,
+      ImageSize->Large,
+      PlotLabel->FormBox[
+       "\"Canonical aligned first harmonic\"", TraditionalForm],
+      PlotRange->All], {516., -112.79325515020685}, ImageScaled[{0.5, 0.5}], {192., 211.1865103004137},
+     
+     BaseStyle->{Graphics3DBoxOptions -> {SphericalRegion -> False}}]}, {}},
+  ImageSize->Large,
+  Method->{"IgnoreImageSizeAutomaticLimit" -> True},
+  PlotRange->{{0, 619.2}, {-225.5865103004137, 0}},
+  PlotRangePadding->Automatic]], "Output",
+ CellChangeTimes->{3.992804384828599*^9},
+ CellLabel->
+  "Out[2593]=",ExpressionUUID->"e12edc9b-3fe0-42f9-a9b0-d15cb5fb8c01"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["14. Pair-aligned evolution gallery", "Section",ExpressionUUID->"b6707e3b-707b-47aa-b117-2c46033e00a6"],
+
+Cell["\<\
+galleryTimes = {0, 1, 2, 5, 10, 20, 40};
+galleryPolygons = Table[
+  iterateR[pExample, alphaExample, paramsExample, m],
+  {m, galleryTimes}
+];\
+\>", "Input",
+ CellLabel->
+  "In[2594]:=",ExpressionUUID->"89a224f9-c60f-4093-a68a-6e749f1f5076"],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+GraphicsGrid[
+  Partition[
+    MapThread[
+      polygonPlot[#1, Row[{\"m = \", #2}]] &,
+      {galleryPolygons, galleryTimes}
+    ],
+    3,
+    3,
+    {1, 1},
+    Nothing
+  ],
+  ImageSize -> Large
+]\
+\>", "Input",
+ CellLabel->
+  "In[2596]:=",ExpressionUUID->"126bfab8-fbb5-44f4-ab05-d1324e7bd2e9"],
+
+Cell[BoxData[
+ GraphicsBox[{{}, {{InsetBox[
+      GraphicsBox[
+       {Thickness[Large], 
+        LineBox[{{0.3824525514960536, -0.5314006184707869}, {
+         0.13776234348537264`, 0.8870581516324918}, {-0.3128716419776548, 
+         0.33247888763320005`}, {-0.8485612479189965, -0.42954801580923957`}, \
+{0.9419808857410757, -0.7392227712724384}, {0.3050237900632845, 
+         0.5942243917365568}, {0.6030208850200759, 
+         0.20080789240052938`}, {-0.19425117136646441`, -0.5287394428737755}, \
+{-0.7092151052929133, -0.28087020230012333`}, {0.6042265902844394, 
+         1.0989095244240519`}, {-0.201797664239041, 
+         0.011973901230433806`}, {-0.7077702152952318, -0.6156716983308999}, {
+         0.3824525514960536, -0.5314006184707869}}], 
+        {PointSize[0.018], 
+         PointBox[{{0.3824525514960536, -0.5314006184707869}, {
+          0.13776234348537264`, 0.8870581516324918}, {-0.3128716419776548, 
+          0.33247888763320005`}, {-0.8485612479189965, \
+-0.42954801580923957`}, {0.9419808857410757, -0.7392227712724384}, {
+          0.3050237900632845, 0.5942243917365568}, {0.6030208850200759, 
+          0.20080789240052938`}, {-0.19425117136646441`, \
+-0.5287394428737755}, {-0.7092151052929133, -0.28087020230012333`}, {
+          0.6042265902844394, 1.0989095244240519`}, {-0.201797664239041, 
+          0.011973901230433806`}, {-0.7077702152952318, \
+-0.6156716983308999}}]}},
+       AspectRatio->1,
+       Axes->True,
+       ImageSize->Large,
+       PlotLabel->FormBox[
+         TemplateBox[{"\"m = \"", "0"}, "RowDefault"], TraditionalForm],
+       PlotRange->All], {309.6, -316.303125}, ImageScaled[{0.5, 0.5}], {576., 589.40625},
+      
+      BaseStyle->{Graphics3DBoxOptions -> {SphericalRegion -> False}}], 
+     InsetBox[
+      GraphicsBox[
+       {Thickness[Large], 
+        LineBox[{{0.32442236338155606`, -0.05058356723368318}, {
+         0.653357728075185, 0.5709735226801874}, {-0.5401959997826234, 
+         0.09091776910365443}, {-0.7939601044744232, -0.4257524300370902}, {
+         0.6022630100306513, -0.2769438419037962}, {0.940836181649463, 
+         0.3450386642549049}, {
+         0.33808461539787676`, -0.06868793855236897}, {-0.8845340144352893, \
+-0.33565270473502784`}, {-0.10389949965446504`, 0.1844395441270449}, {
+         1.0915829729221909`, 
+         0.5667491729906793}, {-0.6608010888069381, -0.14278378082719634`}, \
+{-0.9671561643031836, -0.4577144098673076}, {
+         0.32442236338155606`, -0.05058356723368318}}], 
+        {PointSize[0.018], 
+         PointBox[{{0.32442236338155606`, -0.05058356723368318}, {
+          0.653357728075185, 0.5709735226801874}, {-0.5401959997826234, 
+          0.09091776910365443}, {-0.7939601044744232, -0.4257524300370902}, {
+          0.6022630100306513, -0.2769438419037962}, {0.940836181649463, 
+          0.3450386642549049}, {
+          0.33808461539787676`, -0.06868793855236897}, {-0.8845340144352893, \
+-0.33565270473502784`}, {-0.10389949965446504`, 0.1844395441270449}, {
+          1.0915829729221909`, 
+          0.5667491729906793}, {-0.6608010888069381, -0.14278378082719634`}, \
+{-0.9671561643031836, -0.4577144098673076}}]}},
+       AspectRatio->1,
+       Axes->True,
+       ImageSize->Large,
+       PlotLabel->FormBox[
+         TemplateBox[{"\"m = \"", "1"}, "RowDefault"], TraditionalForm],
+       PlotRange->All], {928.8000000000002, -316.303125}, 
+      ImageScaled[{0.5, 0.5}], {576., 582.4654750807396},
+      BaseStyle->{Graphics3DBoxOptions -> {SphericalRegion -> False}}], 
+     InsetBox[
+      GraphicsBox[
+       {Thickness[Large], 
+        LineBox[{{0.6942570682771826, 0.10483184103510196`}, {
+         0.6785985182555612, 
+         0.3138069488734163}, {-0.8478278864316292, -0.027553836531392373`}, \
+{-0.7341353406713815, -0.28460656413032365`}, {
+         0.8128390224128217, -0.10179824282872829`}, {1.077530436422485, 
+         0.11078686469181429`}, {-0.26703010432866425`, \
+-0.12662379177031508`}, {-0.8887225880300167, -0.08121262711269106}, {
+         0.6911120165273197, 0.23837800923071845`}, {0.8890766755735464, 
+         0.2264502746633935}, {-1.1752185778530992`, -0.1513489828168344}, \
+{-0.9304792401541246, -0.22110989330415953`}, {0.6942570682771826, 
+         0.10483184103510196`}}], 
+        {PointSize[0.018], 
+         PointBox[{{0.6942570682771826, 0.10483184103510196`}, {
+          0.6785985182555612, 
+          0.3138069488734163}, {-0.8478278864316292, -0.027553836531392373`}, \
+{-0.7341353406713815, -0.28460656413032365`}, {
+          0.8128390224128217, -0.10179824282872829`}, {1.077530436422485, 
+          0.11078686469181429`}, {-0.26703010432866425`, \
+-0.12662379177031508`}, {-0.8887225880300167, -0.08121262711269106}, {
+          0.6911120165273197, 0.23837800923071845`}, {0.8890766755735464, 
+          0.2264502746633935}, {-1.1752185778530992`, -0.1513489828168344}, \
+{-0.9304792401541246, -0.22110989330415953`}}]}},
+       AspectRatio->1,
+       Axes->True,
+       ImageSize->Large,
+       PlotLabel->FormBox[
+         TemplateBox[{"\"m = \"", "2"}, "RowDefault"], TraditionalForm],
+       PlotRange->All], {1548., -316.303125}, ImageScaled[{0.5, 0.5}], {576., 589.40625},
+      
+      BaseStyle->{Graphics3DBoxOptions -> {SphericalRegion -> False}}]}, {
+     InsetBox[
+      GraphicsBox[
+       {Thickness[Large], 
+        LineBox[{{
+         0.8400923229479269, -0.005841579339587621}, {-0.5005385107585741, 
+         0.07492087278153062}, {-0.9450520329619876, 0.017990937587217953`}, {
+         0.31398234948981973`, -0.12693522942437382`}, {
+         0.8795859428855086, -0.13932581639475983`}, {-0.11231483022935997`, \
+-0.011041426320479445`}, {-0.4169207749962385, 0.05807339617622337}, {
+         0.7350492312514636, -0.004722961360190181}, {
+         0.7626755999698533, -0.017282271568021618`}, {-0.8778233481105324, 
+         0.08711974494853014}, {-1.1293480216338412`, 0.08633845590093633}, {
+         0.4506120721459618, -0.019294122987025958`}, {
+         0.8400923229479269, -0.005841579339587621}}], 
+        {PointSize[0.018], 
+         PointBox[{{
+          0.8400923229479269, -0.005841579339587621}, {-0.5005385107585741, 
+          0.07492087278153062}, {-0.9450520329619876, 
+          0.017990937587217953`}, {
+          0.31398234948981973`, -0.12693522942437382`}, {
+          0.8795859428855086, -0.13932581639475983`}, {-0.11231483022935997`, \
+-0.011041426320479445`}, {-0.4169207749962385, 0.05807339617622337}, {
+          0.7350492312514636, -0.004722961360190181}, {
+          0.7626755999698533, -0.017282271568021618`}, {-0.8778233481105324, 
+          0.08711974494853014}, {-1.1293480216338412`, 0.08633845590093633}, {
+          0.4506120721459618, -0.019294122987025958`}}]}},
+       AspectRatio->1,
+       Axes->True,
+       ImageSize->Large,
+       PlotLabel->FormBox[
+         TemplateBox[{"\"m = \"", "5"}, "RowDefault"], TraditionalForm],
+       PlotRange->All], {309.6, -948.9093750000002}, 
+      ImageScaled[{0.5, 0.5}], {576., 589.4062499999999},
+      BaseStyle->{Graphics3DBoxOptions -> {SphericalRegion -> False}}], 
+     InsetBox[
+      GraphicsBox[
+       {Thickness[Large], 
+        LineBox[{{-0.4705173659021448, 
+         0.1015013156928257}, {-0.4215629865569881, 0.04771304972600036}, {
+         0.01017367225793418, -0.07054567251800624}, {
+         0.14798315173549392`, -0.07449605325516859}, {
+         0.1485766984637715, -0.03340473187415225}, {
+         0.40571099388031934`, -0.07451143548084985}, {
+         0.4725525430996705, -0.08701465967924746}, {-0.06732861683661817, 
+         0.04572283457287666}, {-0.5008684722840766, 
+         0.15054176717069206`}, {-0.141076364970864, 0.05788650492592393}, {
+         0.34004585052686015`, -0.06107004543716481}, {
+         0.07631089658664077, -0.0023228738437292493`}, {-0.4705173659021448, 
+         0.1015013156928257}}], 
+        {PointSize[0.018], 
+         PointBox[{{-0.4705173659021448, 
+          0.1015013156928257}, {-0.4215629865569881, 0.04771304972600036}, {
+          0.01017367225793418, -0.07054567251800624}, {
+          0.14798315173549392`, -0.07449605325516859}, {
+          0.1485766984637715, -0.03340473187415225}, {
+          0.40571099388031934`, -0.07451143548084985}, {
+          0.4725525430996705, -0.08701465967924746}, {-0.06732861683661817, 
+          0.04572283457287666}, {-0.5008684722840766, 
+          0.15054176717069206`}, {-0.141076364970864, 0.05788650492592393}, {
+          0.34004585052686015`, -0.06107004543716481}, {
+          0.07631089658664077, -0.0023228738437292493`}}]}},
+       AspectRatio->1,
+       Axes->True,
+       ImageSize->Large,
+       PlotLabel->FormBox[
+         TemplateBox[{"\"m = \"", "10"}, "RowDefault"], TraditionalForm],
+       PlotRange->All], {928.8000000000002, -948.9093750000002}, ImageScaled[
+      {0.5, 0.5}], {576., 589.40625},
+      BaseStyle->{Graphics3DBoxOptions -> {SphericalRegion -> False}}], 
+     InsetBox[
+      GraphicsBox[
+       {Thickness[Large], 
+        LineBox[{{-0.21463198704005793`, 
+         0.017982160441931364`}, {-0.13066140039719346`, \
+-0.024964927002676766`}, {-0.017904624271079132`, -0.050839511222381104`}, {
+         0.10056662287719675`, -0.05368565053936841}, {
+         0.19655255783372488`, -0.04269575567738015}, {
+         0.22512697691993291`, -0.03199367681839074}, {
+         0.1768421901975506, -0.024318314703114234`}, {
+         0.0977252146655938, -0.008231721354992208}, {0.022797703244948835`, 
+         0.02397415671257994}, {-0.06276965202565259, 
+         0.06001604307359222}, {-0.16365583986561144`, 
+         0.07589726448288195}, {-0.22998776213935157`, 
+         0.058859932607318095`}, {-0.21463198704005793`, 
+         0.017982160441931364`}}], 
+        {PointSize[0.018], 
+         PointBox[{{-0.21463198704005793`, 
+          0.017982160441931364`}, {-0.13066140039719346`, \
+-0.024964927002676766`}, {-0.017904624271079132`, -0.050839511222381104`}, {
+          0.10056662287719675`, -0.05368565053936841}, {
+          0.19655255783372488`, -0.04269575567738015}, {
+          0.22512697691993291`, -0.03199367681839074}, {
+          0.1768421901975506, -0.024318314703114234`}, {
+          0.0977252146655938, -0.008231721354992208}, {0.022797703244948835`, 
+          0.02397415671257994}, {-0.06276965202565259, 
+          0.06001604307359222}, {-0.16365583986561144`, 
+          0.07589726448288195}, {-0.22998776213935157`, 
+          0.058859932607318095`}}]}},
+       AspectRatio->1,
+       Axes->True,
+       ImageSize->Large,
+       PlotLabel->FormBox[
+         TemplateBox[{"\"m = \"", "20"}, "RowDefault"], TraditionalForm],
+       PlotRange->All], {1548., -948.9093750000002}, 
+      ImageScaled[{0.5, 0.5}], {576., 589.40625},
+      BaseStyle->{Graphics3DBoxOptions -> {SphericalRegion -> False}}]}, {
+     InsetBox[
+      GraphicsBox[
+       {Thickness[Large], 
+        LineBox[{{-0.18853364856812438`, 
+         0.021679309965497467`}, {-0.11836791301002222`, \
+-0.008580044731390034}, {-0.02122718707308867, -0.0371248456217748}, {
+         0.08343231945534776, -0.05611343374199828}, {
+         0.1722423584744702, -0.05986558478839975}, {
+         0.21946577567804473`, -0.04697527836249146}, {
+         0.20600935485172406`, -0.021105134929458702`}, {0.13102275603082836`,
+          0.010202164290919424`}, {0.016406322981916716`, 
+         0.03817279023122416}, {-0.10090802664108822`, 
+         0.055539258888177054`}, {-0.18489720066690013`, 
+         0.058243465142912}, {-0.21464491151311277`, 
+         0.04592733365678371}, {-0.18853364856812438`, 
+         0.021679309965497467`}}], 
+        {PointSize[0.018], 
+         PointBox[{{-0.18853364856812438`, 
+          0.021679309965497467`}, {-0.11836791301002222`, \
+-0.008580044731390034}, {-0.02122718707308867, -0.0371248456217748}, {
+          0.08343231945534776, -0.05611343374199828}, {
+          0.1722423584744702, -0.05986558478839975}, {
+          0.21946577567804473`, -0.04697527836249146}, {
+          0.20600935485172406`, -0.021105134929458702`}, {
+          0.13102275603082836`, 0.010202164290919424`}, {
+          0.016406322981916716`, 0.03817279023122416}, {-0.10090802664108822`,
+           0.055539258888177054`}, {-0.18489720066690013`, 
+          0.058243465142912}, {-0.21464491151311277`, 0.04592733365678371}}]}},
+       AspectRatio->1,
+       Axes->True,
+       ImageSize->Large,
+       PlotLabel->FormBox[
+         TemplateBox[{"\"m = \"", "40"}, "RowDefault"], TraditionalForm],
+       PlotRange->All], {309.6, -1582.6410375414866}, 
+      ImageScaled[{0.5, 0.5}], {576., 591.6570750829728},
+      BaseStyle->{Graphics3DBoxOptions -> {SphericalRegion -> False}}], 
+     TagBox[
+      InsetBox["", {928.8000000000002, -1582.6410375414866}, {
+       Center, Center}, {576.0000000000001, 591.657075082973},
+       BaseStyle->{Graphics3DBoxOptions -> {SphericalRegion -> False}}],
+      "InsetString"], 
+     TagBox[
+      InsetBox["", {1548., -1582.6410375414866}, {Center, Center}, {576.0000000000002, 591.657075082973},
+       
+       BaseStyle->{Graphics3DBoxOptions -> {SphericalRegion -> False}}],
+      "InsetString"]}}, {}},
+  ImageSize->Large,
+  Method->{"IgnoreImageSizeAutomaticLimit" -> True},
+  PlotRange->{{0, 1857.6000000000001`}, {-1900.069575082973, 0}},
+  PlotRangePadding->Automatic]], "Output",
+ CellChangeTimes->{3.992804385016143*^9},
+ CellLabel->
+  "Out[2596]=",ExpressionUUID->"42aeff9c-2787-4d83-aa32-e649586e9cc2"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["15. Independence of the limiting shape from alpha", "Section",ExpressionUUID->"8ee53db1-175b-41aa-9cad-3ea61d1983fb"],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+alphaValues = {0.2, 0.35, 0.6, 0.8};
+alphaLimitErrors = Table[
+  {
+    alpha,
+    limitError[pExample, alpha, paramsExample, 80]
+  },
+  {alpha, alphaValues}
+];
+alphaLimitErrors // TableForm\
+\>", "Input",
+ CellLabel->
+  "In[2597]:=",ExpressionUUID->"4b3ea705-3a89-4749-a841-43df160183d8"],
+
+Cell[BoxData[
+ TagBox[GridBox[{
+    {"0.2`", "0.010128749323294842`"},
+    {"0.35`", "0.0007627081113749947`"},
+    {"0.6`", "0.0001681935903719749`"},
+    {"0.8`", "0.009665404388830573`"}
+   },
+   GridBoxAlignment->{"Columns" -> {{Left}}, "Rows" -> {{Baseline}}},
+   GridBoxSpacings->{"Columns" -> {
+       Offset[0.27999999999999997`], {
+        Offset[2.0999999999999996`]}, 
+       Offset[0.27999999999999997`]}, "Rows" -> {
+       Offset[0.2], {
+        Offset[0.4]}, 
+       Offset[0.2]}}],
+  Function[BoxForm`e$, 
+   TableForm[BoxForm`e$]]]], "Output",
+ CellChangeTimes->{3.9928043850567503`*^9},
+ CellLabel->
+  "Out[2599]//TableForm=",ExpressionUUID->"70d8704f-99a8-44c2-86f0-\
+cd5fc7f0772a"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["16. Automated verification report", "Section",ExpressionUUID->"694e044a-110c-42f5-90f5-8d0e252466b8"],
+
+Cell["\<\
+Clear[verificationReport];
+
+verificationReport[] := verificationReport[18];
+
+verificationReport[maxN_Integer?Positive] := Module[{rows},
+  rows = Table[
+    Module[
+      {alpha, p, data, params, pair, hError, alignError, fixedError, \
+linearError, limitErr, u, v},
+      alpha = 0.37;
+      SeedRandom[5000 + n];
+      p = RandomReal[{-1, 1}, n] + I RandomReal[{-1, 1}, n];
+      p = centerPolygon[p];
+      data = firstHarmonicData[p];
+      If[Abs[Abs[data[\"c1\"]] - Abs[data[\"cNMinus1\"]]] < 10^-6,
+        p = p + 0.1 fourierVector[n, 1]
+      ];
+      params = alignmentParameters[p];
+      pair = pairPlaneProjection[p];
+      hError = Norm[N[applyHInverse[applyH[p, params], params] - p]];
+      alignError = Norm[N[
+        applyH[pair, params] -
+        params[\"AlignedAmplitude\"] fourierVector[n, 1]
+      ]];
+      fixedError = Norm[N[applyR[pair, alpha, params] - pair]];
+      u = RandomReal[{-1, 1}, n] + I RandomReal[{-1, 1}, n];
+      v = RandomReal[{-1, 1}, n] + I RandomReal[{-1, 1}, n];
+      linearError = Norm[N[
+        applyR[1.3 u - 0.4 v, alpha, params] -
+        1.3 applyR[u, alpha, params] +
+        0.4 applyR[v, alpha, params]
+      ]];
+      limitErr = limitError[p, alpha, params, 100];
+      <|
+        \"n\" -> n,
+        \"H inverse property\" -> TrueQ[hError < 10^-9],
+        \"First-harmonic alignment\" -> TrueQ[alignError < 10^-9],
+        \"First harmonic fixed\" -> TrueQ[fixedError < 10^-9],
+        \"Real linearity\" -> TrueQ[linearError < 10^-9],
+        \"Convergence at m=100\" -> TrueQ[limitErr < 10^-5]
+      |>
+    ],
+    {n, 5, maxN}
+  ];
+  Dataset[rows]
+];\
+\>", "Input",
+ CellLabel->
+  "In[2600]:=",ExpressionUUID->"0c8ccea5-c3f0-49f8-a4cf-10940981a86d"],
+
+Cell[CellGroupData[{
+
+Cell["verificationReport[]", "Input",
+ CellLabel->
+  "In[2605]:=",ExpressionUUID->"60b25310-87ff-4b29-916a-de4e66fbca07"],
+
+Cell[BoxData[
+ TagBox[
+  TagBox[
+   DynamicModuleBox[{TypeSystem`NestedGrid`PackagePrivate`$state$$ = <|
+    "InitialData" -> {<|
+       "n" -> 5, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> True|>, <|
+       "n" -> 6, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> True|>, <|
+       "n" -> 7, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> True|>, <|
+       "n" -> 8, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> True|>, <|
+       "n" -> 9, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> True|>, <|
+       "n" -> 10, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> True|>, <|
+       "n" -> 11, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> False|>, <|
+       "n" -> 12, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> False|>, <|
+       "n" -> 13, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> False|>, <|
+       "n" -> 14, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> False|>, <|
+       "n" -> 15, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> False|>, <|
+       "n" -> 16, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> False|>, <|
+       "n" -> 17, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> False|>, <|
+       "n" -> 18, "H inverse property" -> True, "First-harmonic alignment" -> 
+        True, "First harmonic fixed" -> True, "Real linearity" -> True, 
+        "Convergence at m=100" -> False|>}, "AllowEmbedding" -> True, 
+     "InitialShape" -> 
+     TypeSystem`PackageScope`HeaderShape[<|{All, "n"} -> 
+        1, {All, "H inverse property"} -> 
+        1, {All, "First-harmonic alignment"} -> 
+        1, {All, "First harmonic fixed"} -> 1, {All, "Real linearity"} -> 
+        1, {All, "Convergence at m=100"} -> 1|>, 
+       TypeSystem`PackageScope`Limited[
+        TypeSystem`PackageScope`ColumnShape[
+         TypeSystem`PackageScope`Limited[
+          
+          TypeSystem`PackageScope`RowShape[<|
+           "n" -> TypeSystem`PackageScope`AtomShape[34], "H inverse property" -> 
+            TypeSystem`PackageScope`AtomShape[36], "First-harmonic alignment" -> 
+            TypeSystem`PackageScope`AtomShape[36], "First harmonic fixed" -> 
+            TypeSystem`PackageScope`AtomShape[36], "Real linearity" -> 
+            TypeSystem`PackageScope`AtomShape[36], "Convergence at m=100" -> 
+            TypeSystem`PackageScope`AtomShape[36]|>], 
+          DirectedInfinity[1], 6, {All}]], 14, 
+        DirectedInfinity[1], {}]], "InitialType" -> TypeSystem`Vector[
+       TypeSystem`Struct[{
+        "n", "H inverse property", "First-harmonic alignment", 
+         "First harmonic fixed", "Real linearity", "Convergence at m=100"}, {
+         TypeSystem`Atom[Integer], 
+         TypeSystem`Atom[TypeSystem`Boolean], 
+         TypeSystem`Atom[TypeSystem`Boolean], 
+         TypeSystem`Atom[TypeSystem`Boolean], 
+         TypeSystem`Atom[TypeSystem`Boolean], 
+         TypeSystem`Atom[TypeSystem`Boolean]}], 14], "Meta" -> <||>, 
+     "RowTarget" -> 20, "ColumnTarget" -> 10, "Shape" -> 
+     TypeSystem`PackageScope`HeaderShape[<|{All, "n"} -> 
+        1, {All, "H inverse property"} -> 
+        1, {All, "First-harmonic alignment"} -> 
+        1, {All, "First harmonic fixed"} -> 1, {All, "Real linearity"} -> 
+        1, {All, "Convergence at m=100"} -> 1|>, 
+       TypeSystem`PackageScope`Limited[
+        TypeSystem`PackageScope`ColumnShape[
+         TypeSystem`PackageScope`Limited[
+          
+          TypeSystem`PackageScope`RowShape[<|
+           "n" -> TypeSystem`PackageScope`AtomShape[34], "H inverse property" -> 
+            TypeSystem`PackageScope`AtomShape[36], "First-harmonic alignment" -> 
+            TypeSystem`PackageScope`AtomShape[36], "First harmonic fixed" -> 
+            TypeSystem`PackageScope`AtomShape[36], "Real linearity" -> 
+            TypeSystem`PackageScope`AtomShape[36], "Convergence at m=100" -> 
+            TypeSystem`PackageScope`AtomShape[36]|>], 
+          DirectedInfinity[1], 6, {All}]], 14, 
+        DirectedInfinity[1], {}]], "Type" -> TypeSystem`Vector[
+       TypeSystem`Struct[{
+        "n", "H inverse property", "First-harmonic alignment", 
+         "First harmonic fixed", "Real linearity", "Convergence at m=100"}, {
+         TypeSystem`Atom[Integer], 
+         TypeSystem`Atom[TypeSystem`Boolean], 
+         TypeSystem`Atom[TypeSystem`Boolean], 
+         TypeSystem`Atom[TypeSystem`Boolean], 
+         TypeSystem`Atom[TypeSystem`Boolean], 
+         TypeSystem`Atom[TypeSystem`Boolean]}], 14], "Path" -> {}, 
+     "DisplayedRowCount" -> 14, "DisplayedColumnCount" -> 6, "DataRowCount" -> 
+     14, "DataColumnCount" -> 6, "SortPaths" -> {}, "SortDirections" -> {}, 
+     "HiddenItemsMap" -> Null, "UpdateType" -> 1|>, 
+    TypeSystem`NestedGrid`PackagePrivate`$outputID$$, 
+    TypeSystem`NestedGrid`PackagePrivate`$path$$ = {}, 
+    TypeSystem`NestedGrid`PackagePrivate`$vPos$$ = 1, 
+    TypeSystem`NestedGrid`PackagePrivate`$hPos$$ = 1, 
+    TypeSystem`NestedGrid`PackagePrivate`$grid$$ = 
+    DynamicModule[{
+     TypeSystem`NestedGrid`PackagePrivate`renderedGrid = Deploy[
+        Style[
+         Grid[{{
+            Item[
+             Pane[
+              Annotation[
+               EventHandler[
+                MouseAppearance[
+                 Mouseover["n", 
+                  Style[
+                  "n", FontColor -> 
+                   RGBColor[
+                    0.2749633796890805, 0.536987306253161, 
+                    0.791992189065661]]], "LinkHand"], {"MouseClicked", 1} :> 
+                If[
+                  TypeSystem`NestedGrid`PackagePrivate`checkInteractivity[
+                  TypeSystem`NestedGrid`PackagePrivate`$state$$], 
+                  TypeSystem`NestedGrid`PackagePrivate`updateState[
+                  TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$hPos$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$grid$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`$outputID$$]]][{
+                   All, "n"}, 1]]], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{All, "n"},
+                 "ColumnHeader", True], "Mouse"], 
+              ImageSize -> {{1, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], Background -> 
+             RGBColor[
+              0.9500473017990948, 0.9500473017990948, 0.9500473017990948], 
+             Alignment -> {Left, Baseline}], 
+            Item[
+             Pane[
+              Annotation[
+               EventHandler[
+                MouseAppearance[
+                 Mouseover["H inverse property", 
+                  Style[
+                  "H inverse property", FontColor -> 
+                   RGBColor[
+                    0.2749633796890805, 0.536987306253161, 
+                    0.791992189065661]]], "LinkHand"], {"MouseClicked", 1} :> 
+                If[
+                  TypeSystem`NestedGrid`PackagePrivate`checkInteractivity[
+                  TypeSystem`NestedGrid`PackagePrivate`$state$$], 
+                  TypeSystem`NestedGrid`PackagePrivate`updateState[
+                  TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$hPos$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$grid$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`$outputID$$]]][{
+                   All, "H inverse property"}, 1]]], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{
+                All, "H inverse property"}, "ColumnHeader", True], "Mouse"], 
+              ImageSize -> {{1, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], Background -> 
+             RGBColor[
+              0.9500473017990948, 0.9500473017990948, 0.9500473017990948], 
+             Alignment -> {Left, Baseline}], 
+            Item[
+             Pane[
+              Annotation[
+               EventHandler[
+                MouseAppearance[
+                 Mouseover["First-harmonic alignment", 
+                  Style[
+                  "First-harmonic alignment", FontColor -> 
+                   RGBColor[
+                    0.2749633796890805, 0.536987306253161, 
+                    0.791992189065661]]], "LinkHand"], {"MouseClicked", 1} :> 
+                If[
+                  TypeSystem`NestedGrid`PackagePrivate`checkInteractivity[
+                  TypeSystem`NestedGrid`PackagePrivate`$state$$], 
+                  TypeSystem`NestedGrid`PackagePrivate`updateState[
+                  TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$hPos$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$grid$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`$outputID$$]]][{
+                   All, "First-harmonic alignment"}, 1]]], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{
+                All, "First-harmonic alignment"}, "ColumnHeader", True], 
+               "Mouse"], ImageSize -> {{1, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], Background -> 
+             RGBColor[
+              0.9500473017990948, 0.9500473017990948, 0.9500473017990948], 
+             Alignment -> {Left, Baseline}], 
+            Item[
+             Pane[
+              Annotation[
+               EventHandler[
+                MouseAppearance[
+                 Mouseover["First harmonic fixed", 
+                  Style[
+                  "First harmonic fixed", FontColor -> 
+                   RGBColor[
+                    0.2749633796890805, 0.536987306253161, 
+                    0.791992189065661]]], "LinkHand"], {"MouseClicked", 1} :> 
+                If[
+                  TypeSystem`NestedGrid`PackagePrivate`checkInteractivity[
+                  TypeSystem`NestedGrid`PackagePrivate`$state$$], 
+                  TypeSystem`NestedGrid`PackagePrivate`updateState[
+                  TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$hPos$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$grid$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`$outputID$$]]][{
+                   All, "First harmonic fixed"}, 1]]], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{
+                All, "First harmonic fixed"}, "ColumnHeader", True], "Mouse"],
+               ImageSize -> {{1, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], Background -> 
+             RGBColor[
+              0.9500473017990948, 0.9500473017990948, 0.9500473017990948], 
+             Alignment -> {Left, Baseline}], 
+            Item[
+             Pane[
+              Annotation[
+               EventHandler[
+                MouseAppearance[
+                 Mouseover["Real linearity", 
+                  Style[
+                  "Real linearity", FontColor -> 
+                   RGBColor[
+                    0.2749633796890805, 0.536987306253161, 
+                    0.791992189065661]]], "LinkHand"], {"MouseClicked", 1} :> 
+                If[
+                  TypeSystem`NestedGrid`PackagePrivate`checkInteractivity[
+                  TypeSystem`NestedGrid`PackagePrivate`$state$$], 
+                  TypeSystem`NestedGrid`PackagePrivate`updateState[
+                  TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$hPos$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$grid$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`$outputID$$]]][{
+                   All, "Real linearity"}, 1]]], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{
+                All, "Real linearity"}, "ColumnHeader", True], "Mouse"], 
+              ImageSize -> {{1, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], Background -> 
+             RGBColor[
+              0.9500473017990948, 0.9500473017990948, 0.9500473017990948], 
+             Alignment -> {Left, Baseline}], 
+            Item[
+             Pane[
+              Annotation[
+               EventHandler[
+                MouseAppearance[
+                 Mouseover["Convergence at m=100", 
+                  Style[
+                  "Convergence at m=100", FontColor -> 
+                   RGBColor[
+                    0.2749633796890805, 0.536987306253161, 
+                    0.791992189065661]]], "LinkHand"], {"MouseClicked", 1} :> 
+                If[
+                  TypeSystem`NestedGrid`PackagePrivate`checkInteractivity[
+                  TypeSystem`NestedGrid`PackagePrivate`$state$$], 
+                  TypeSystem`NestedGrid`PackagePrivate`updateState[
+                  TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$hPos$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`$grid$$, 
+                   TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`$outputID$$]]][{
+                   All, "Convergence at m=100"}, 1]]], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{
+                All, "Convergence at m=100"}, "ColumnHeader", True], "Mouse"],
+               ImageSize -> {{1, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], Background -> 
+             RGBColor[
+              0.9500473017990948, 0.9500473017990948, 0.9500473017990948], 
+             Alignment -> {Left, Baseline}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["5"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{1, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{1, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{1, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{1, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{1, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{1, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["6"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{2, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{2, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{2, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{2, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{2, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{2, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["7"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{3, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{3, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{3, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{3, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{3, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{3, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["8"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{4, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{4, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{4, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{4, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{4, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{4, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["9"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{5, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{5, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{5, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{5, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{5, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{5, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["10"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{6, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{6, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{6, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{6, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{6, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{6, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["11"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{7, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{7, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{7, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{7, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{7, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["False"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{7, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["12"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{8, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{8, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{8, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{8, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{8, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["False"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{8, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["13"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{9, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{9, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{9, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{9, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{9, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["False"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{9, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["14"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{10, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{10, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{10, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{10, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{10, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["False"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{10, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["15"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{11, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{11, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{11, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{11, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{11, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["False"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{11, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["16"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{12, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{12, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{12, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{12, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{12, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["False"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{12, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["17"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{13, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{13, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{13, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{13, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{13, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["False"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{13, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}, {
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["18"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{14, 
+                 Key["n"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{34, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{14, 
+                 Key["H inverse property"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{14, 
+                 Key["First-harmonic alignment"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{14, 
+                 Key["First harmonic fixed"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["True"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{14, 
+                 Key["Real linearity"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}], 
+            Item[
+             Pane[
+              Annotation[
+               RawBoxes["False"], 
+               TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][{14, 
+                 Key["Convergence at m=100"]}, "Item", False], "Mouse"], 
+              ImageSize -> {{36, Full}, Automatic}, 
+              ImageMargins -> {{5, 3}, {4, 5}}], 
+             ItemSize -> {Full, Automatic}]}}, 
+          BaseStyle -> {
+           ContextMenu -> 
+            Dynamic[TypeSystem`NestedGrid`PackagePrivate`$contextMenuTrigger; 
+              Which[TypeSystem`NestedGrid`PackagePrivate`$lastOutputID =!= 
+                TypeSystem`NestedGrid`PackagePrivate`localHold[
+                 TypeSystem`NestedGrid`PackagePrivate`$outputID$$], {}, 
+                TypeSystem`NestedGrid`PackagePrivate`$contextMenuTrigger === 
+                TypeSystem`NestedGrid`PackagePrivate`$lastContextMenuTrigger, 
+                TypeSystem`NestedGrid`PackagePrivate`$lastContextMenu, True, 
+                TypeSystem`NestedGrid`PackagePrivate`$lastContextMenuTrigger = 
+                 TypeSystem`NestedGrid`PackagePrivate`$contextMenuTrigger; 
+                TypeSystem`NestedGrid`PackagePrivate`$lastContextMenu = 
+                 Block[{TypeSystem`NestedGrid`PackagePrivate`$globalScrollPos = \
+{TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$hPos$$}}, 
+                   
+                   With[{TypeSystem`NestedGrid`PackagePrivate`lastPath$ = 
+                    TypeSystem`NestedGrid`PackagePrivate`$lastPath, 
+                    TypeSystem`NestedGrid`PackagePrivate`lastPathType$ = 
+                    TypeSystem`NestedGrid`PackagePrivate`$lastPathType, 
+                    TypeSystem`NestedGrid`PackagePrivate`isLeafHeader$ = 
+                    TypeSystem`NestedGrid`PackagePrivate`$\
+lastPathIsLeafHeader, TypeSystem`NestedGrid`PackagePrivate`headerHidden$ = And[
+                    MatchQ[TypeSystem`NestedGrid`PackagePrivate`$lastPathType, 
+                    Alternatives["RowHeader", "ColumnHeader"]], 
+                    TypeSystem`NestedGrid`PackagePrivate`headerHiddenQ[
+                    TypeSystem`NestedGrid`PackagePrivate`$lastPath, 
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$]], 
+                    TypeSystem`NestedGrid`PackagePrivate`allHidden$ = 
+                    TypeSystem`NestedGrid`PackagePrivate`allHiddenQ[
+                    TypeSystem`NestedGrid`PackagePrivate`$lastPath, 
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$], 
+                    TypeSystem`NestedGrid`PackagePrivate`anyHidden$ = 
+                    TypeSystem`NestedGrid`PackagePrivate`anyHiddenQ[
+                    TypeSystem`NestedGrid`PackagePrivate`$lastPath, 
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$], 
+                    TypeSystem`NestedGrid`PackagePrivate`sortDirection$ = 
+                    TypeSystem`NestedGrid`PackagePrivate`columnSortDirection[
+                    TypeSystem`NestedGrid`PackagePrivate`$lastPath, 
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$[
+                    "SortPaths"], 
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$[
+                    "SortDirections"]], 
+                    TypeSystem`NestedGrid`PackagePrivate`haveData$ = Not[
+                    FailureQ[
+                    TypeSystem`NestedGrid`PackagePrivate`datasetInitialData[
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$]]], 
+                    TypeSystem`NestedGrid`PackagePrivate`isKeyDummy$ = Not[
+                    FreeQ[
+                    TypeSystem`NestedGrid`PackagePrivate`$lastPath, Keys]]}, 
+                    Join[{
+                    If[
+                    Or[
+                    Not[TypeSystem`NestedGrid`PackagePrivate`haveData$], 
+                    Not[TypeSystem`NestedGrid`PackagePrivate`anyHidden$], 
+                    TypeSystem`NestedGrid`PackagePrivate`isKeyDummy$], 
+                    Nothing, 
+                    MenuItem[
+                    "Show " <> 
+                    Which[TypeSystem`NestedGrid`PackagePrivate`lastPathType$ == 
+                    "Item", "", 
+                    TypeSystem`NestedGrid`PackagePrivate`lastPathType$ == 
+                    "RowHeader", "Row", 
+                    TypeSystem`NestedGrid`PackagePrivate`lastPathType$ == 
+                    "ColumnHeader", "Column", True, ""], 
+                    KernelExecute[
+                    TypeSystem`NestedGrid`PackagePrivate`updateHiddenItems[
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$hPos$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$grid$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`$outputID$$]]][
+                    TypeSystem`NestedGrid`PackagePrivate`lastPath$, 
+                    "remove"]], MenuEvaluator -> Automatic]], 
+                    If[
+                    Or[
+                    Not[TypeSystem`NestedGrid`PackagePrivate`haveData$], 
+                    TypeSystem`NestedGrid`PackagePrivate`pathEmptyQ[
+                    TypeSystem`NestedGrid`PackagePrivate`$lastPath, 
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$], 
+                    TypeSystem`NestedGrid`PackagePrivate`isKeyDummy$, 
+                    And[
+                    TypeSystem`NestedGrid`PackagePrivate`allHidden$, 
+                    TypeSystem`NestedGrid`PackagePrivate`headerHidden$]], 
+                    Nothing, 
+                    MenuItem[
+                    "Hide " <> 
+                    Which[TypeSystem`NestedGrid`PackagePrivate`lastPathType$ == 
+                    "Item", "", 
+                    TypeSystem`NestedGrid`PackagePrivate`lastPathType$ == 
+                    "RowHeader", "Row", 
+                    TypeSystem`NestedGrid`PackagePrivate`lastPathType$ == 
+                    "ColumnHeader", "Column", True, ""], 
+                    KernelExecute[
+                    TypeSystem`NestedGrid`PackagePrivate`updateHiddenItems[
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$hPos$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$grid$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`$outputID$$]]][
+                    TypeSystem`NestedGrid`PackagePrivate`lastPath$, "add"]], 
+                    MenuEvaluator -> Automatic]], Delimiter}, 
+                    If[
+                    And[TypeSystem`NestedGrid`PackagePrivate`haveData$, 
+                    MatchQ[TypeSystem`NestedGrid`PackagePrivate`lastPathType$, 
+                    Alternatives["ColumnHeader", "KeyDummy"]], 
+                    TypeSystem`NestedGrid`PackagePrivate`isLeafHeader$, 
+                    Not[TypeSystem`NestedGrid`PackagePrivate`allHidden$]], {
+                    If[
+                    TypeSystem`NestedGrid`PackagePrivate`sortDirection$ =!= 
+                    "Ascending", 
+                    MenuItem["Sort", 
+                    KernelExecute[
+                    TypeSystem`NestedGrid`PackagePrivate`updateSort[
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$hPos$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$grid$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][
+                    TypeSystem`NestedGrid`PackagePrivate`lastPath$, 
+                    "Ascending"]], MenuEvaluator -> Automatic], Nothing], 
+                    If[
+                    TypeSystem`NestedGrid`PackagePrivate`sortDirection$ =!= 
+                    "Descending", 
+                    MenuItem["Reverse Sort", 
+                    KernelExecute[
+                    TypeSystem`NestedGrid`PackagePrivate`updateSort[
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$hPos$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$grid$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][
+                    TypeSystem`NestedGrid`PackagePrivate`lastPath$, 
+                    "Descending"]], MenuEvaluator -> Automatic], Nothing], 
+                    If[
+                    TypeSystem`NestedGrid`PackagePrivate`sortDirection$ =!= 
+                    None, 
+                    MenuItem["Unsort", 
+                    KernelExecute[
+                    TypeSystem`NestedGrid`PackagePrivate`updateSort[
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$hPos$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`$grid$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`localHold[
+                    TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][
+                    TypeSystem`NestedGrid`PackagePrivate`lastPath$, None]], 
+                    MenuEvaluator -> Automatic], Nothing], Delimiter}, {}], {
+                    MenuItem["Copy Position to Clipboard", 
+                    KernelExecute[
+                    TypeSystem`NestedGrid`PackagePrivate`toCurrentPosition[
+                    TypeSystem`NestedGrid`PackagePrivate`copyClip]], 
+                    MenuEvaluator -> Automatic], 
+                    If[TypeSystem`NestedGrid`PackagePrivate`haveData$, 
+                    MenuItem["Copy Data to Clipboard", 
+                    KernelExecute[
+                    TypeSystem`NestedGrid`PackagePrivate`toCurrentData[
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`copyClip]], 
+                    MenuEvaluator -> Automatic], Nothing], Delimiter, 
+                    MenuItem["Paste Position in New Cell", 
+                    KernelExecute[
+                    TypeSystem`NestedGrid`PackagePrivate`toCurrentPosition[
+                    TypeSystem`NestedGrid`PackagePrivate`cellPaste]], 
+                    MenuEvaluator -> Automatic], 
+                    If[TypeSystem`NestedGrid`PackagePrivate`haveData$, 
+                    MenuItem["Paste Data in New Cell", 
+                    KernelExecute[
+                    TypeSystem`NestedGrid`PackagePrivate`toCurrentData[
+                    TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+                    TypeSystem`NestedGrid`PackagePrivate`cellPaste]], 
+                    MenuEvaluator -> Automatic], Nothing]}]]]]], FontFamily -> 
+            "Source Sans Pro", FontSize -> 14, FontWeight -> Plain}, Dividers -> 
+          All, FrameStyle -> 
+          RGBColor[0.749003690406716, 0.749003690406716, 0.749003690406716], 
+          Spacings -> {0, 0}, Alignment -> Left, 
+          BaseStyle -> {
+           FontFamily -> "Source Sans Pro", FontSize -> 14, FontWeight -> 
+            Plain}], LineBreakWithin -> False, ContextMenu -> {}, NumberMarks -> 
+         False, ShowAutoStyles -> False]], 
+      TypeSystem`NestedGrid`PackagePrivate`initialQ = True}, 
+     Dynamic[
+      TypeSystem`NestedGrid`PackagePrivate`setupViewPath[
+      TypeSystem`NestedGrid`PackagePrivate`$path$$, If[
+         Not[TypeSystem`NestedGrid`PackagePrivate`initialQ], 
+         Module[{
+          TypeSystem`NestedGrid`PackagePrivate`tmpGrid$ = $Failed, 
+           TypeSystem`NestedGrid`PackagePrivate`tmpData$ = 
+           TypeSystem`NestedGrid`PackagePrivate`datasetData[
+            TypeSystem`NestedGrid`PackagePrivate`$state$$]}, 
+          TypeSystem`NestedGrid`PackagePrivate`tmpGrid$ = If[
+             FailureQ[TypeSystem`NestedGrid`PackagePrivate`tmpData$], 
+             TypeSystem`NestedGrid`PackagePrivate`renderedGrid, 
+             TypeSystem`NestedGrid`PackagePrivate`renderGrid[
+             TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+              TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+              TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+              TypeSystem`NestedGrid`PackagePrivate`$hPos$$, 
+              TypeSystem`NestedGrid`PackagePrivate`$grid$$, 
+              TypeSystem`NestedGrid`PackagePrivate`localHold[
+              TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][
+             TypeSystem`NestedGrid`PackagePrivate`tmpData$]]; If[
+            Not[
+             FailureQ[TypeSystem`NestedGrid`PackagePrivate`tmpGrid$]], 
+            TypeSystem`NestedGrid`PackagePrivate`renderedGrid = 
+            TypeSystem`NestedGrid`PackagePrivate`tmpGrid$]; Null]]; 
+       TypeSystem`NestedGrid`PackagePrivate`initialQ = False; 
+       TypeSystem`NestedGrid`PackagePrivate`$vPos$$; 
+       TypeSystem`NestedGrid`PackagePrivate`$hPos$$; If[
+         FailureQ[TypeSystem`NestedGrid`PackagePrivate`renderedGrid], 
+         TypeSystem`SparseGrid[
+          TypeSystem`H["(data no longer present)"]], 
+         TypeSystem`NestedGrid`PackagePrivate`renderedGrid]], 
+      TrackedSymbols :> {
+       TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+        TypeSystem`NestedGrid`PackagePrivate`$hPos$$}], 
+     DynamicModuleValues :> {}], 
+    TypeSystem`NestedGrid`PackagePrivate`$topBar$$ = Dynamic[
+     TypeSystem`NestedGrid`PackagePrivate`makeFramedBar[
+      TypeSystem`PackageScope`SubViewPathbar[
+      TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+       TypeSystem`NestedGrid`PackagePrivate`updateState[
+       TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+        TypeSystem`NestedGrid`PackagePrivate`$path$$, 
+        TypeSystem`NestedGrid`PackagePrivate`$vPos$$, 
+        TypeSystem`NestedGrid`PackagePrivate`$hPos$$, 
+        TypeSystem`NestedGrid`PackagePrivate`$grid$$, 
+        TypeSystem`NestedGrid`PackagePrivate`localHold[
+        TypeSystem`NestedGrid`PackagePrivate`$outputID$$]]]], 
+     TrackedSymbols :> {TypeSystem`NestedGrid`PackagePrivate`$path$$}], 
+    TypeSystem`NestedGrid`PackagePrivate`$bottomBar$$ = Dynamic[
+     Replace[
+      Replace[
+      TypeSystem`NestedGrid`PackagePrivate`mouseAnnotation$$, {
+       TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+          TypeSystem`NestedGrid`PackagePrivate`localHold[
+          TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][Null, 
+          Blank[]] -> "", TypeSystem`NestedGrid`PackagePrivate`$SliceMarker[
+          TypeSystem`NestedGrid`PackagePrivate`localHold[
+          TypeSystem`NestedGrid`PackagePrivate`$outputID$$]][
+          Pattern[TypeSystem`NestedGrid`PackagePrivate`path$, 
+           Blank[]], 
+          Pattern[TypeSystem`NestedGrid`PackagePrivate`pathType$, 
+           Blank[]], 
+          Pattern[TypeSystem`NestedGrid`PackagePrivate`isLeafHeader$, 
+           Blank[]]] :> (
+         Increment[TypeSystem`NestedGrid`PackagePrivate`$contextMenuTrigger]; 
+         TypeSystem`NestedGrid`PackagePrivate`$lastPath = 
+          TypeSystem`NestedGrid`PackagePrivate`path$; 
+         TypeSystem`NestedGrid`PackagePrivate`$lastPathType = 
+          TypeSystem`NestedGrid`PackagePrivate`pathType$; 
+         TypeSystem`NestedGrid`PackagePrivate`$lastPathIsLeafHeader = 
+          TypeSystem`NestedGrid`PackagePrivate`isLeafHeader$; 
+         TypeSystem`NestedGrid`PackagePrivate`$lastOutputID = 
+          TypeSystem`NestedGrid`PackagePrivate`localHold[
+           TypeSystem`NestedGrid`PackagePrivate`$outputID$$]; 
+         TypeSystem`NestedGrid`PackagePrivate`makePathTrail[
+          TypeSystem`NestedGrid`PackagePrivate`path$, 
+           TypeSystem`NestedGrid`PackagePrivate`makePathElements]), Null :> 
+        Spacer[10], Blank[] :> Spacer[10]}], 
+      Pattern[TypeSystem`NestedGrid`PackagePrivate`bar, 
+        Except[
+         Alternatives[
+          Blank[Spacer], ""]]] :> 
+      TypeSystem`NestedGrid`PackagePrivate`makeFramedPathbar[
+       TypeSystem`NestedGrid`PackagePrivate`bar]], 
+     TrackedSymbols :> {
+      TypeSystem`NestedGrid`PackagePrivate`mouseAnnotation$$}], 
+    TypeSystem`NestedGrid`PackagePrivate`mouseAnnotation$$ = Null}, 
+    DynamicWrapperBox[
+     DynamicBox[ToBoxes[
+       Dataset`DatasetContent[
+       2, "Path" -> Hold[TypeSystem`NestedGrid`PackagePrivate`$path$$], 
+        "Grid" -> Hold[TypeSystem`NestedGrid`PackagePrivate`$grid$$], "State" -> 
+        Hold[TypeSystem`NestedGrid`PackagePrivate`$state$$], "VPos" -> 
+        Hold[TypeSystem`NestedGrid`PackagePrivate`$vPos$$], "HPos" -> 
+        Hold[TypeSystem`NestedGrid`PackagePrivate`$hPos$$], "TopBar" -> 
+        Hold[TypeSystem`NestedGrid`PackagePrivate`$topBar$$], "BottomBar" -> 
+        Hold[TypeSystem`NestedGrid`PackagePrivate`$bottomBar$$], "OutputID" -> 
+        Hold[
+          TypeSystem`NestedGrid`PackagePrivate`localHold[
+          TypeSystem`NestedGrid`PackagePrivate`$outputID$$]]], StandardForm],
+      ImageSizeCache->{
+       669.90159375, {197.11782836914062`, 202.84976196289062`}},
+      TrackedSymbols:>{
+       TypeSystem`NestedGrid`PackagePrivate`$state$$, 
+        TypeSystem`NestedGrid`PackagePrivate`$grid$$}], 
+     TypeSystem`NestedGrid`PackagePrivate`mouseAnnotation$$ = 
+     MouseAnnotation[],
+     ImageSizeCache->{
+      669.90159375, {197.11782836914062`, 202.84976196289062`}}],
+    BaseStyle->{
+     LineBreakWithin -> False, 
+      LightDarkAutoColorRules -> <|"MarkedColors" -> True|>},
+    DynamicModuleValues:>{},
+    Initialization:>(TypeSystem`NestedGrid`PackagePrivate`$outputID$$ = 
+     CreateUUID[]),
+    UnsavedVariables:>{TypeSystem`NestedGrid`PackagePrivate`$outputID$$}],
+   Deploy,
+   DefaultBaseStyle->"Deploy"],
+  Dataset`InterpretDataset[1],
+  Editable->False,
+  SelectWithContents->True,
+  Selectable->False]], "Output",
+ CellChangeTimes->{3.99280438525403*^9},
+ CellLabel->
+  "Out[2605]=",ExpressionUUID->"c8a38983-3957-45a6-8785-306a1d9aa66a"]
+}, Open  ]]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Conclusion", "Section",ExpressionUUID->"3bab4a0c-da55-4f52-bb6e-fe10d778787f"],
+
+Cell[TextData[{
+ "The notebook implements the Chapter 3 pair-aligned rescaling. The map ",
+ Cell[BoxData[
+ "H"], "InlineFormula",ExpressionUUID->"7e5b1126-f3dc-4b70-881f-caee776561db"],
+ " sends the initial nondegenerate first harmonic to a canonical pure first \
+mode, the normalized averaging map fixes that mode, and the conjugated \
+operator ",
+ Cell[BoxData[
+  SubscriptBox["R", "\[Alpha]"]], "InlineFormula",ExpressionUUID->
+  "c977ba01-7e0d-4c08-94c8-127804e40af5"],
+ " fixes the original first-harmonic component while contracting all \
+complementary modes. Its iterates therefore converge to the ellipse \
+determined by the initial coefficients ",
+ Cell[BoxData[
+  SubscriptBox["c", "1"]], "InlineFormula",ExpressionUUID->
+  "5448b956-cd88-449f-ab4b-7d2179011fc2"],
+ " and ",
+ Cell[BoxData[
+  SubscriptBox["c", 
+   RowBox[{"n", "-", "1"}]]], "InlineFormula",ExpressionUUID->
+  "6d885f32-62fe-4b6b-ae47-c3ce9cef46b3"],
+ "."
+}], "Text",ExpressionUUID->"29d308fe-9944-40e9-b0a9-267246e99ba4"]
+}, Open  ]]
+}, Open  ]]
+},
+Saveable->True,
+WindowSize->{808, 911},
+WindowMargins->{{716, Automatic}, {Automatic, 99}},
+WindowTitle->"PairAlignedDynamics",
+FrontEndVersion->"14.3 for Mac OS X ARM (64-bit) (July 8, 2025)",
+StyleDefinitions->"Default.nb",
+ExpressionUUID->"8c62068f-9a02-458c-b81e-dd88030ced72"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[609, 23, 91, 0, 96, "Title",ExpressionUUID->"efc2423e-10e2-4664-9b72-0c09507451dd"],
+Cell[703, 25, 150, 2, 52, "Subtitle",ExpressionUUID->"c88c655d-c15e-45bc-9d82-2c6034d3bcd4"],
+Cell[CellGroupData[{
+Cell[878, 31, 81, 0, 66, "Section",ExpressionUUID->"2ef56875-1222-47d6-b814-72c9f851a2e2"],
+Cell[962, 33, 493, 9, 79, "Text",ExpressionUUID->"8e224c60-b1f5-4238-a3fa-69166ec1f798"],
+Cell[1458, 44, 202, 3, 55, "Text",ExpressionUUID->"bed3ce6f-6ee2-41f3-a6a3-36ebd7afee4f"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[1697, 52, 110, 0, 66, "Section",ExpressionUUID->"9d0ed6d4-d942-473b-a09c-21116b9255d4"],
+Cell[1810, 54, 847, 32, 514, "Input",ExpressionUUID->"b31f5bd9-d366-4c47-889a-36c691be2324"],
+Cell[2660, 88, 103, 0, 33, "Text",ExpressionUUID->"d17b7c2f-3a87-49c7-ba4f-a036c5e19b95"],
+Cell[2766, 90, 360, 10, 25, "DisplayFormula",ExpressionUUID->"5e3fbf36-c82c-4592-be5a-0ad16923bba3"],
+Cell[3129, 102, 144, 5, 46, "Input",ExpressionUUID->"25ce2dd4-d3df-4603-afd2-b454cd23db2f"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[3310, 112, 105, 0, 66, "Section",ExpressionUUID->"bfe7a6a5-cff0-4d2f-967f-b9edadb2ccae"],
+Cell[3418, 114, 604, 26, 410, "Input",ExpressionUUID->"999e2816-47d2-4f8f-ad9e-32b48aa76c9f"],
+Cell[4025, 142, 422, 10, 133, "Input",ExpressionUUID->"a676ffb5-d4f7-476d-9823-116524223ca3"],
+Cell[CellGroupData[{
+Cell[4472, 156, 119, 2, 29, "Input",ExpressionUUID->"331362b9-02dc-4050-b1b3-c9cd6b746df9"],
+Cell[4594, 160, 177, 3, 47, "Output",ExpressionUUID->"3880809e-891b-485b-8c77-fc199eef59ba"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[4808, 168, 115, 2, 29, "Input",ExpressionUUID->"3c0af7c8-5404-4954-8217-5cf1ede46714"],
+Cell[4926, 172, 159, 3, 47, "Output",ExpressionUUID->"f2eae2bb-00d2-44fb-9719-006e9164cec3"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[5134, 181, 97, 0, 66, "Section",ExpressionUUID->"9c3e4302-917e-480f-8de1-ff954e21ed11"],
+Cell[5234, 183, 74, 0, 33, "Text",ExpressionUUID->"b6f82eee-38df-4e87-a006-5ff4ec150a7b"],
+Cell[5311, 185, 380, 11, 25, "DisplayFormula",ExpressionUUID->"a8335f65-eee5-43a8-adc0-33cf685ca3c8"],
+Cell[5694, 198, 489, 13, 35, "Text",ExpressionUUID->"63edf0b5-33ee-467b-ad49-586b7cf35edb"],
+Cell[6186, 213, 483, 17, 42, "DisplayFormula",ExpressionUUID->"421722bf-b1a2-4fcc-81b1-5f8cf66e921b"],
+Cell[6672, 232, 656, 21, 324, "Input",ExpressionUUID->"ecb19dd8-6b14-432d-bb93-a88259855f4f"],
+Cell[CellGroupData[{
+Cell[7353, 257, 169, 5, 46, "Input",ExpressionUUID->"8aa776ca-8e34-4cc2-ae6c-7343fd68b34f"],
+Cell[7525, 264, 731, 16, 67, "Output",ExpressionUUID->"2c678438-cefd-47b1-8a08-59bd74f58121"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[8305, 286, 97, 0, 66, "Section",ExpressionUUID->"f737e653-559e-4068-b71b-9ecc4d1376b5"],
+Cell[8405, 288, 418, 13, 39, "DisplayFormula",ExpressionUUID->"75cd2a8b-3c0e-4ab6-9388-0ce83deee327"],
+Cell[8826, 303, 237, 8, 98, "Input",ExpressionUUID->"bb0794e1-1249-432b-befb-444eae4d9379"],
+Cell[9066, 313, 283, 8, 81, "Input",ExpressionUUID->"fab3017d-db62-4f35-b5c5-e804cc03c46b"],
+Cell[CellGroupData[{
+Cell[9374, 325, 121, 2, 29, "Input",ExpressionUUID->"ae98e151-d3a9-4a2b-aca5-ca83c435a3f6"],
+Cell[9498, 329, 176, 3, 47, "Output",ExpressionUUID->"266b4cdb-7e90-4d0d-8a45-ca6207ab9573"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[9711, 337, 117, 2, 29, "Input",ExpressionUUID->"7f4abab3-bb80-4423-92ba-9454abbd7ee2"],
+Cell[9831, 341, 157, 3, 47, "Output",ExpressionUUID->"1c3e61f7-05c6-4d47-a8d0-68d31d0d57d7"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[10037, 350, 113, 0, 66, "Section",ExpressionUUID->"32332d0e-f074-428b-a7b1-93a81c80d617"],
+Cell[10153, 352, 375, 9, 25, "DisplayFormula",ExpressionUUID->"34b2c211-0bfc-46cb-a99f-d328638f212f"],
+Cell[10531, 363, 384, 14, 202, "Input",ExpressionUUID->"52524132-0ca8-463e-b5be-ac965d303f8c"],
+Cell[10918, 379, 245, 6, 46, "Input",ExpressionUUID->"4f2efded-cf53-463a-af03-8b2d0c955c22"],
+Cell[CellGroupData[{
+Cell[11188, 389, 114, 2, 29, "Input",ExpressionUUID->"9950c72a-55bf-4d9c-a1dd-8874d62a6a53"],
+Cell[11305, 393, 175, 3, 47, "Output",ExpressionUUID->"3e89af71-e732-401f-8260-455ed9b83ba1"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[11517, 401, 110, 2, 29, "Input",ExpressionUUID->"76ca962c-871c-4f57-ba0b-36b8a14ecc6d"],
+Cell[11630, 405, 159, 3, 47, "Output",ExpressionUUID->"968fff6a-1a7d-43b8-9ab3-1ca4ef27c961"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[11838, 414, 108, 0, 66, "Section",ExpressionUUID->"927a5c47-0902-4b61-b872-d53d9b60753e"],
+Cell[11949, 416, 97, 0, 33, "Text",ExpressionUUID->"4f99bfd1-bacf-4b2b-ac4d-0de707657cc3"],
+Cell[12049, 418, 273, 7, 25, "DisplayFormula",ExpressionUUID->"0a122701-742c-4135-8f65-0da6524f33a6"],
+Cell[12325, 427, 385, 8, 98, "Input",ExpressionUUID->"a79dbc7b-0a78-40ab-a64d-637304471902"],
+Cell[CellGroupData[{
+Cell[12735, 439, 124, 2, 29, "Input",ExpressionUUID->"656a0c3d-3af1-4f7a-a041-df703e64eadc"],
+Cell[12862, 443, 1669, 35, 153, "Output",ExpressionUUID->"af10ba33-a78c-4e3c-a3c0-2c2d89ebc06a"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[14568, 483, 115, 2, 29, "Input",ExpressionUUID->"5d454a3f-0add-4b0a-8805-20873ce8a606"],
+Cell[14686, 487, 177, 3, 47, "Output",ExpressionUUID->"5f7eced0-54cb-4af7-a85e-2a8443688770"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[14900, 495, 111, 2, 29, "Input",ExpressionUUID->"3378307d-6ff3-45bd-828a-eaeac7b46d60"],
+Cell[15014, 499, 157, 3, 47, "Output",ExpressionUUID->"759f8c1a-8ae2-440f-8edb-88c936a17898"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[15220, 508, 95, 0, 66, "Section",ExpressionUUID->"094c77f2-481d-4479-bb13-bb54dfec61b5"],
+Cell[15318, 510, 77, 0, 33, "Text",ExpressionUUID->"6497a470-42d7-4fe2-bea3-b6ec650ee875"],
+Cell[15398, 512, 284, 8, 41, "DisplayFormula",ExpressionUUID->"74c77e33-fcc1-4e7a-90cb-72bd583eaf0d"],
+Cell[15685, 522, 219, 7, 81, "Input",ExpressionUUID->"f84f1a38-5299-41ed-bfd0-c2d7d7d18f23"],
+Cell[15907, 531, 247, 6, 64, "Input",ExpressionUUID->"05f24194-6191-4351-b698-9a30852a1320"],
+Cell[CellGroupData[{
+Cell[16179, 541, 115, 2, 29, "Input",ExpressionUUID->"145a2240-d7b0-42d9-b96c-3d7210e5c361"],
+Cell[16297, 545, 177, 3, 47, "Output",ExpressionUUID->"ca4deb57-4b64-4443-9614-4776055ce8d8"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[16511, 553, 111, 2, 29, "Input",ExpressionUUID->"1e706c56-79af-4e33-bd69-5d8750baa62d"],
+Cell[16625, 557, 157, 3, 47, "Output",ExpressionUUID->"089f7be2-fea8-4a12-aae4-7e20c6fd46c3"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[16831, 566, 107, 0, 66, "Section",ExpressionUUID->"45069bd8-7835-4c6d-837c-29a7141a4046"],
+Cell[16941, 568, 287, 9, 25, "DisplayFormula",ExpressionUUID->"def7c317-e0fa-4646-a024-7bc2af0ee0c9"],
+Cell[17231, 579, 365, 11, 150, "Input",ExpressionUUID->"86d311f9-5e72-4ce8-863e-feb70ea43af5"],
+Cell[17599, 592, 224, 5, 46, "Input",ExpressionUUID->"920c2e0c-fc09-4ecc-acc8-e69a05f91c8a"],
+Cell[CellGroupData[{
+Cell[17848, 601, 115, 2, 29, "Input",ExpressionUUID->"fa893cbd-c08b-4963-a829-628594b6d2d7"],
+Cell[17966, 605, 177, 3, 47, "Output",ExpressionUUID->"3be1b106-5b72-47f6-969b-08819d5c99bf"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[18180, 613, 111, 2, 29, "Input",ExpressionUUID->"174f7249-e840-4ebf-ae74-530025ddae8f"],
+Cell[18294, 617, 157, 3, 47, "Output",ExpressionUUID->"2bb0570d-4058-43a8-a531-3538d4c0c122"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[18500, 626, 91, 0, 66, "Section",ExpressionUUID->"d7323681-b503-4b33-af81-4346a10e65ec"],
+Cell[18594, 628, 549, 14, 202, "Input",ExpressionUUID->"e78d8653-77f1-4df3-86a8-8bc492db4b91"],
+Cell[CellGroupData[{
+Cell[19168, 646, 119, 2, 29, "Input",ExpressionUUID->"291f7c6d-a49b-445e-ba59-2da04bae5a19"],
+Cell[19290, 650, 176, 3, 47, "Output",ExpressionUUID->"20d6d03c-907f-4899-8ebb-6adce8b3440c"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[19503, 658, 115, 2, 29, "Input",ExpressionUUID->"cea3a5b3-7dd6-4512-a9bc-a860d96bf4a7"],
+Cell[19621, 662, 157, 3, 47, "Output",ExpressionUUID->"5a34da6b-c346-460f-a096-37c63bf45227"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[19827, 671, 119, 0, 66, "Section",ExpressionUUID->"fce84091-402a-43cf-8cab-5ccd3ae3f656"],
+Cell[19949, 673, 422, 13, 40, "DisplayFormula",ExpressionUUID->"56a69a1f-353f-470b-99de-90cc1b47b34c"],
+Cell[20374, 688, 373, 9, 98, "Input",ExpressionUUID->"00fd6497-a347-4b96-b73a-070fd0fc41ba"],
+Cell[CellGroupData[{
+Cell[20772, 701, 286, 9, 116, "Input",ExpressionUUID->"77b95691-c570-4da2-a087-2c8c030dde63"],
+Cell[21061, 712, 1152, 30, 87, "Output",ExpressionUUID->"01d44e35-b8e1-4509-8f24-0639be0d2d34"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[22250, 747, 340, 13, 185, "Input",ExpressionUUID->"cd26ac14-15e5-4b74-98a9-99fdf0e3f7e4"],
+Cell[22593, 762, 11459, 258, 357, "Output",ExpressionUUID->"f39eecf9-eb47-42dd-bb7c-a30765c14c54"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[34101, 1026, 119, 0, 66, "Section",ExpressionUUID->"ff019b07-0f9b-40fd-9df6-15d66301ce45"],
+Cell[34223, 1028, 332, 9, 32, "DisplayFormula",ExpressionUUID->"a2649ca9-1312-4041-b3a2-c93b997adf0d"],
+Cell[CellGroupData[{
+Cell[34580, 1041, 384, 12, 150, "Input",ExpressionUUID->"ef134c70-18b7-4c0f-a496-73037e7a8ecd"],
+Cell[34967, 1055, 1011, 29, 248, "Output",ExpressionUUID->"063552e7-5d40-4d17-aa3c-8e4cf9da1103"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[36015, 1089, 348, 13, 185, "Input",ExpressionUUID->"8a6c8ea7-5ce8-4644-bede-44a0e727af60"],
+Cell[36366, 1104, 12292, 273, 342, "Output",ExpressionUUID->"8e69fb21-1828-46eb-80c3-b95f9724774d"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[48707, 1383, 101, 0, 66, "Section",ExpressionUUID->"b85e2f12-1b91-4fa7-b8bb-4d2d59a6f4a3"],
+Cell[48811, 1385, 120, 0, 33, "Text",ExpressionUUID->"c5c650f7-aa8e-4d34-a0b4-2a00cdeccea9"],
+Cell[48934, 1387, 497, 16, 25, "DisplayFormula",ExpressionUUID->"1deef465-1adc-4a9a-8eac-1241ed732fbd"],
+Cell[CellGroupData[{
+Cell[49456, 1407, 313, 11, 150, "Input",ExpressionUUID->"2f777da1-c746-42c4-b3b7-7c50981d87b2"],
+Cell[49772, 1420, 239, 6, 47, "Output",ExpressionUUID->"464f965c-2ef7-4a58-9b1f-4ead5a4e42e9"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[50060, 1432, 99, 0, 66, "Section",ExpressionUUID->"924cc921-3c7b-43ce-b4ba-4ed761489278"],
+Cell[50162, 1434, 474, 22, 341, "Input",ExpressionUUID->"e1d6299a-2848-4598-9465-9e53982835e3"],
+Cell[CellGroupData[{
+Cell[50661, 1460, 329, 11, 150, "Input",ExpressionUUID->"358c7c87-e9d5-4907-baa3-685e4c864a1a"],
+Cell[50993, 1473, 5615, 108, 240, "Output",ExpressionUUID->"e12edc9b-3fe0-42f9-a9b0-d15cb5fb8c01"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[56657, 1587, 108, 0, 66, "Section",ExpressionUUID->"b6707e3b-707b-47aa-b117-2c46033e00a6"],
+Cell[56768, 1589, 251, 8, 98, "Input",ExpressionUUID->"89a224f9-c60f-4093-a68a-6e749f1f5076"],
+Cell[CellGroupData[{
+Cell[57044, 1601, 307, 16, 237, "Input",ExpressionUUID->"126bfab8-fbb5-44f4-ab05-d1324e7bd2e9"],
+Cell[57354, 1619, 13389, 257, 619, "Output",ExpressionUUID->"42aeff9c-2787-4d83-aa32-e649586e9cc2"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[70792, 1882, 123, 0, 66, "Section",ExpressionUUID->"8ee53db1-175b-41aa-9cad-3ea61d1983fb"],
+Cell[CellGroupData[{
+Cell[70940, 1886, 298, 12, 168, "Input",ExpressionUUID->"4b3ea705-3a89-4749-a841-43df160183d8"],
+Cell[71241, 1900, 701, 20, 94, "Output",ExpressionUUID->"70d8704f-99a8-44c2-86f0-cd5fc7f0772a"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[71991, 1926, 107, 0, 66, "Section",ExpressionUUID->"694e044a-110c-42f5-90f5-8d0e252466b8"],
+Cell[72101, 1928, 1723, 49, 792, "Input",ExpressionUUID->"0c8ccea5-c3f0-49f8-a4cf-10940981a86d"],
+Cell[CellGroupData[{
+Cell[73849, 1981, 121, 2, 29, "Input",ExpressionUUID->"60b25310-87ff-4b29-916a-de4e66fbca07"],
+Cell[73973, 1985, 79138, 1554, 430, "Output",ExpressionUUID->"c8a38983-3957-45a6-8785-306a1d9aa66a"]
+}, Open  ]]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[153160, 3545, 84, 0, 66, "Section",ExpressionUUID->"3bab4a0c-da55-4f52-bb6e-fe10d778787f"],
+Cell[153247, 3547, 998, 22, 105, "Text",ExpressionUUID->"29d308fe-9944-40e9-b0a9-267246e99ba4"]
+}, Open  ]]
+}, Open  ]]
+}
+]
+*)
+
